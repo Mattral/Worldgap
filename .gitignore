@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+.venv/
+venv/
+
+# data (spec 12.16 -- raw datasets MUST NOT be committed)
+data/raw/
+data/processed/
+data/index.db
+
+# experiment tracking / notebooks scratch
+wandb/
+.ipynb_checkpoints/
+*.pt
+*.pth

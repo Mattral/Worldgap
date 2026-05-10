@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "worldgap"
+version = "0.1.0"
+description = "Reusable world-model-based domain-gap quantification for perception and actuation pipelines, before touching hardware."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Min (Mattral)" }]
+keywords = ["sim2real", "domain-gap", "world-model", "jepa", "robotics", "rehabilitation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "scikit-learn>=1.3",
+    "pydantic>=2.5",
+    "pandas>=2.1",
+    "pyyaml>=6.0",
+    # torch is core, not optional -- the World Model Core (analyzer.py ->
+    # models/world_model.py) is needed for BOTH modalities, not just one.
+    "torch>=2.2",
+]
+
+[project.optional-dependencies]
+# V1 data loading only: MediaPipe landmark extraction from raw HaGRID/EgoHands
+# frames. The world model itself does NOT need this extra.
+perception = [
+    "mediapipe>=0.10",
+]
+# V2 data loading only: MuJoCo compliant-actuator simulation. The world model
+# itself does NOT need this extra.
+actuation = [
+    "mujoco>=3.1",
+]
+dev = [
+    "pytest>=8.0",
+    "hypothesis>=6.100",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+worldgap = "worldgap.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/worldgap"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
