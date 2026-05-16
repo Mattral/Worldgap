@@ -1,0 +1,27 @@
+# Default config for V1 (perception gap). Loaded via `worldgap train --config`.
+# modality is set by the --modality CLI flag, not here (spec 9.2) -- this file
+# starts from GapConfig's own defaults for everything else.
+
+state_dim: 258  # 33*4 (pose) + 21*3 + 21*3 (hands), per spec 5.1.1
+
+encoder:
+  d_model: 256
+  n_layers: 4
+  n_heads: 4
+  dim_feedforward: 1024
+  dropout: 0.1
+
+world_model:
+  context_frames: 16      # ~0.5s at 30fps
+  predict_frames: 8       # ~0.25s at 30fps
+  ema_decay: 0.996
+  summary_dim: 64         # kept small deliberately -- spec 7.3
+  collapse_variance_threshold: 0.0001
+  collapse_patience_checks: 3
+
+training:
+  lr: 0.0003
+  weight_decay: 0.01
+  batch_size: 64
+  max_epochs: 100
+  seed: 0
