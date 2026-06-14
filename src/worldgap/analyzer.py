@@ -10,6 +10,7 @@ architecture has a hidden assumption that needs fixing here, not around it.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -172,3 +173,40 @@ class GapAnalyzer:
                 f"latent_dim={fd.latent_dim}) — see spec Section 7.3"
             )
         return GapResult(frechet=fd, mmd=mmd, warnings=warnings)
+
+    # -- Persistence -----------------------------------------------------
+    #
+    # Spec 9.2's CLI splits `train` and `analyze` into separate commands, which
+    # only makes sense if a fitted GapAnalyzer can be written to disk by one
+    # process and reloaded by another. Neither the CLI example nor the rest of
+    # Section 9 spells out a checkpoint format, so this is a documented
+    # implementation decision, not a literal spec requirement: a single
+    # torch.save() of the model/optimizer state plus the GapConfig needed to
+    # reconstruct this object, since GapConfig (Pydantic) is picklable.
+
+    def save_checkpoint(self, path: str | Path) -> None:
+        """Writes model + optimizer state and the config to a single file."""
+        torch.save(
+            {
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "config": self.config,
+                "fitted": self._fitted,
+            },
+            path,
+        )
+
+    @classmethod
+    def load_checkpoint(cls, path: str | Path) -> "GapAnalyzer":
+        """Reconstructs a GapAnalyzer from a checkpoint written by
+        `save_checkpoint`. Loads with `weights_only=False` since the
+        checkpoint intentionally carries a GapConfig object, not just
+        tensors — only load checkpoints you trust, same as any pickle-backed
+        format.
+        """
+        checkpoint = torch.load(path, weights_only=False, map_location="cpu")
+        analyzer = cls(checkpoint["config"])
+        analyzer.model.load_state_dict(checkpoint["model_state_dict"])
+        analyzer.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        analyzer._fitted = checkpoint["fitted"]
+        return analyzer
