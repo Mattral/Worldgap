@@ -8,8 +8,10 @@ reproducibility requirements).
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Literal
 
+import yaml
 from pydantic import BaseModel, Field, model_validator
 
 Modality = Literal["perception", "actuation"]
@@ -79,3 +81,20 @@ class GapConfig(BaseModel):
                 "for actuation (spec 5.1.1: 2-6 depending on DOF count modeled)."
             )
         return self
+
+    @classmethod
+    def from_yaml(cls, path: str | Path, modality: Modality) -> "GapConfig":
+        """Loads a config file like configs/v1_default.yaml, per spec 9.2's
+        `worldgap train --config configs/v1_default.yaml`. `modality` MUST come
+        from the CLI's `--modality` flag, not the file, per configs/v1_default.yaml's
+        own header comment -- one config file is meant to be reusable regardless
+        of which modality it's paired with at invocation time.
+        """
+        with open(path) as f:
+            raw = yaml.safe_load(f) or {}
+        if "modality" in raw:
+            raise ValueError(
+                f"{path}: 'modality' MUST be set via the --modality CLI flag, not "
+                "in the config file (spec 9.2) -- remove it from the YAML."
+            )
+        return cls(modality=modality, **raw)
