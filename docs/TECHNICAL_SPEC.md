@@ -259,10 +259,12 @@ result = analyzer.compute_gap(source_rollouts, target_rollouts)
 ### 9.2 CLI (MUST)
 
 ```
-worldgap train    --modality perception --data-dir ./data/processed/perception --config configs/v1_default.yaml
+worldgap train    --modality perception --data-dir ./data/processed --config configs/v1_default.yaml
 worldgap analyze   --source ./data/clean --target ./data/perturbed --modality perception --output report.html
 worldgap validate  --gap-scores results.csv --ground-truth degradation.csv
 ```
+
+**Implementation note (documented decision, not a deviation)**: `--data-dir`/`--source`/`--target` are each treated as a self-contained rollout store (`{dir}/index.db` + `{dir}/{modality}/*.npz`) rather than assuming a single shared repo-wide `data/` root as the 5.3 diagram depicts — this is what lets `analyze` compare two independently-produced stores (e.g. a "clean" directory and a "perturbed" directory) without them needing to share one index. `--data-dir` therefore points at a store root (e.g. `./data/processed`), not a modality-specific subdirectory; `--modality` still selects which rollouts within that store get loaded. The 5.3 diagram remains the right layout for the primary download+preprocess script's own output. See `src/worldgap/cli.py` module docstring.
 
 ### 9.3 Report output (SHOULD)
 
