@@ -10,6 +10,7 @@ wins; open a PR to reconcile them.
 | Spec section | Code |
 |---|---|
 | 5.1 Rollout schema | `src/worldgap/data/rollout.py` |
+| 5.3 SQLite metadata index | `src/worldgap/data/index.py` (`RolloutIndex`) |
 | 5.4 Synthetic perturbation | `src/worldgap/data/loaders/synthetic_perturb.py` |
 | 5.4 HaGRID / EgoHands loaders | `src/worldgap/data/loaders/hagrid.py`, `egohands.py` (**not yet run against real data** — see ROADMAP Phase 0/1) |
 | 5.5 PGM hysteresis fit | `src/worldgap/data/loaders/pgm_actuator.py` |
@@ -21,8 +22,9 @@ wins; open a PR to reconcile them.
 | 7.1 Fréchet distance | `src/worldgap/metrics/frechet.py` |
 | 7.2 MMD | `src/worldgap/metrics/mmd.py` |
 | 8 Validation harness | `src/worldgap/validation/harness.py`, `stats.py` |
-| 9.1 Top-level API | `src/worldgap/analyzer.py` (`GapAnalyzer`, `GapResult`) |
-| 9.2 CLI | `src/worldgap/cli.py` |
+| 9.1 Top-level API | `src/worldgap/analyzer.py` (`GapAnalyzer`, `GapResult`, checkpoint save/load) |
+| 9.2 CLI | `src/worldgap/cli.py` — wired end-to-end against local rollout stores |
+| 9.3 Report generation | `src/worldgap/report.py` |
 
 ## The one thing to protect
 
@@ -42,6 +44,10 @@ the abstraction rather than adding the branch.
   `NotImplementedError` stub, since it needs real downloaded frames and the
   `perception` extra installed, neither available in the sandbox that
   produced this scaffolding.
-- `cli.py`: `train`/`analyze`/`validate` subcommands parse arguments and print
-  guidance but don't yet call the corresponding data loaders end-to-end.
-- Report generation (spec 9.3, HTML/Markdown output) is not implemented.
+- `pgm_actuator.py`: the reference "real" curve is currently synthetic
+  (test-only); the actual Ogawa et al. (2017) figure still needs digitizing,
+  and that paper is likely paywalled (Taylor & Francis) — see ROADMAP Phase 6.
+
+Everything else that was previously listed here as incomplete — the CLI's
+end-to-end data path, and report generation (spec 9.3) — is now implemented
+and tested (`tests/test_cli.py`, `tests/test_report.py`).
