@@ -20,8 +20,9 @@ at the end of a phase.
       downloaded frames + the `perception` extra, neither available in the
       sandbox that produced this scaffolding. Currently a `NotImplementedError`
       stub with the exact contract documented.
-- [ ] SQLite metadata index (spec 5.3) — not started; `.npz`-per-rollout works
-      without it for now
+- [x] SQLite metadata index (spec 5.3) — `data/index.py`, tested
+      (documented decision: indexed per rollout-store directory, not one
+      shared repo-wide index — see `cli.py` module docstring)
 
 ## Phase 2 — World model core
 - [x] `LandmarkEncoder` (Transformer, spec 6.1) — tested via forward pass
@@ -47,10 +48,19 @@ at the end of a phase.
 - [x] `pyproject.toml`, src-layout, editable install — verified working
 - [x] `GapAnalyzer` public API (spec 9.1) — tested across both modalities
       (`tests/test_modality_swap.py` — the concrete reusability check)
-- [x] CLI skeleton (`worldgap train/analyze/validate`) — argument parsing verified,
-      not yet wired to real data loaders end-to-end
-- [ ] Demo notebook — not started
-- [ ] Report generation (spec 9.3) — not started
+- [x] CLI (`worldgap train/analyze/validate`) — wired end-to-end against local
+      rollout stores; verified via `tests/test_cli.py` (train->analyze
+      round trip, empty/missing-store errors, validate join + anti-cherry-pick
+      rejection) and against the real installed console-script entry point.
+      Still out of scope: producing rollout stores from raw HaGRID/EgoHands
+      frames in the first place (Phase 1's MediaPipe blocker)
+- [x] Demo notebook (`notebooks/demo.ipynb`) — executes top-to-bottom via
+      `jupyter nbconvert --execute` with zero manual intervention (acceptance
+      criterion, spec Section 13); covers V1, the V1/V2 reusability claim, and
+      the validation harness's anti-cherry-picking rejection, entirely on
+      synthetic data
+- [x] Report generation (spec 9.3) — `report.py`, HTML and Markdown output,
+      tested; includes the spec-210 Frechet/MMD rank-disagreement diagnostic
 
 ## Phase 6 — V2 actuation gap
 - [x] Two-branch hysteresis-aware curve fit (spec 5.5, edge case 12.13) — tested
@@ -68,13 +78,18 @@ at the end of a phase.
 
 ## What's actually done vs. what's scaffolded
 
-**Genuinely implemented and tested** (35+ passing tests as of this writing):
-Rollout schema, synthetic perturbation, Fréchet + MMD metrics, EMA, collapse
-safeguard, both encoders, the shared World Model Core, `GapAnalyzer` end-to-end
-across both modalities, the validation harness's anti-cherry-picking
-enforcement, and the PGM hysteresis fit (on synthetic data).
+**Genuinely implemented and tested** (71 passing tests as of this writing):
+Rollout schema, SQLite metadata index, synthetic perturbation, Fréchet + MMD
+metrics, EMA, collapse safeguard, both encoders, the shared World Model Core,
+`GapAnalyzer` end-to-end across both modalities (including checkpoint
+save/load), the validation harness's anti-cherry-picking enforcement, the PGM
+hysteresis fit (on synthetic data), HTML/Markdown report generation, the full
+CLI (`train`/`analyze`/`validate`) against local rollout stores, and a demo
+notebook that runs top-to-bottom on synthetic data with zero manual steps.
 
-**Scaffolded but not runnable yet**: the HaGRID/EgoHands MediaPipe extraction
-step (needs real data + network access this sandbox didn't have) and the CLI's
-end-to-end data-loading path. Both have a clearly marked seam in the code
-rather than a silent gap.
+**Still blocked, not skipped for convenience**: the HaGRID/EgoHands MediaPipe
+extraction step (needs real downloaded frames + network access this sandbox
+doesn't have) and digitizing the real Ogawa et al. (2017) curve (needs a
+likely-paywalled Taylor & Francis figure). Both have a clearly marked seam in
+the code rather than a silent gap. Everything else in Phase 5 that doesn't
+require those two inputs is done.
