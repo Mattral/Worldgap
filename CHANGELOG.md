@@ -4,6 +4,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `data/index.py`: `RolloutIndex`, a SQLite metadata index per spec 5.3.
+  `Rollout.save()`/`Rollout.load()` alone can't round-trip a rollout's
+  condition/source/metadata without the caller already knowing them
+  out-of-band; this closes that gap and is what makes "load every rollout in
+  a directory" possible. Tested in `tests/test_index.py`.
+- `GapAnalyzer.save_checkpoint()` / `GapAnalyzer.load_checkpoint()`: model +
+  optimizer + config persistence, needed so `worldgap train` and
+  `worldgap analyze` can be separate processes. Tested in
+  `tests/test_checkpoint.py`.
+- `GapConfig.from_yaml()`: loads `configs/v1_default.yaml`-style files for
+  `worldgap train --config`. Tested against the real default configs in
+  `tests/test_config_yaml.py`.
+- `report.py`: HTML/Markdown report generation per spec 9.3 — condition
+  table, Frechet/MMD trend plot, low-confidence warning surfacing, and a
+  Frechet/MMD rank-disagreement diagnostic per spec Section 210. Tested in
+  `tests/test_report.py`.
+- CLI wired end-to-end: `train`, `analyze`, and `validate` now actually call
+  `GapAnalyzer`/`ValidationHarness` against local rollout stores rather than
+  only parsing arguments. Documented decision: each of
+  `--data-dir`/`--source`/`--target` is a self-contained rollout store
+  (`{dir}/index.db` + `{dir}/{modality}/*.npz`) rather than assuming one
+  shared repo-wide `data/` root — see `cli.py`'s module docstring and the
+  corresponding note added to spec 9.2. Tested end-to-end in
+  `tests/test_cli.py`, including against the real installed console-script.
+- `notebooks/demo.ipynb`: runs top-to-bottom via `jupyter nbconvert --execute`
+  with zero manual intervention (spec Section 13 acceptance criterion) —
+  covers V1 perception gap with a perturbation-severity sanity sweep, the
+  V1/V2 reusability claim via the identical `GapAnalyzer` class, report
+  generation, and the validation harness's anti-cherry-picking rejection.
+  Entirely synthetic data; no Kaggle/MediaPipe/GPU access needed.
+- `matplotlib` added as a core dependency (needed by `report.py`).
+
 ### Fixed
 - `inject_tremor` / `reduce_range_of_motion` (`data/loaders/synthetic_perturb.py`)
   were perturbing every state channel, including the pose block's `visibility`
