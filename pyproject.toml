@@ -26,6 +26,10 @@ dependencies = [
     "pydantic>=2.5",
     "pandas>=2.1",
     "pyyaml>=6.0",
+    # Needed for `worldgap analyze --output report.html` (spec 9.3) -- kept as a
+    # core dep rather than an extra since the CLI's --output flag is part of
+    # the MUST surface (9.2), not an opt-in feature.
+    "matplotlib>=3.7",
     # torch is core, not optional -- the World Model Core (analyzer.py ->
     # models/world_model.py) is needed for BOTH modalities, not just one.
     "torch>=2.2",
