@@ -16,5 +16,7 @@ data/index.db
 # experiment tracking / notebooks scratch
 wandb/
 .ipynb_checkpoints/
+notebooks/*.html
+notebooks/*.png
 *.pt
 *.pth
