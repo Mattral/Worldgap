@@ -1,5 +1,8 @@
 # worldgap
 
+[![PyPI](https://img.shields.io/pypi/v/worldgap.svg)](https://pypi.org/project/worldgap/)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Mattral/worldgap/blob/main/notebooks/demo.ipynb)
+
 Reusable world-model-based domain-gap quantification — for perception pipelines and
 actuator/mechanism models — before any hardware is touched.
 

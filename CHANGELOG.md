@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `pyproject.toml`: added `[project.urls]` (Homepage/Repository/Issues/Changelog)
+  and completed the classifier list (Python 3.10/3.11/3.12, OS Independent,
+  `Human Machine Interfaces` in place of a nonexistent `Robotics` topic
+  classifier — verified against the real `trove-classifiers` package, not
+  guessed). Verified `python -m build` + `twine check` pass, and that the
+  built wheel installs and runs correctly (`import worldgap`, `GapAnalyzer`,
+  and the `worldgap` console script) in a completely clean venv.
+- `notebooks/demo.ipynb`: added a Colab badge and an auto-install cell so the
+  notebook works from a fresh Colab runtime (installs from GitHub until the
+  package is on PyPI, then from PyPI). Re-verified zero errors after the change.
+- `README.md`: added PyPI and Colab badges.
 - `data/index.py`: `RolloutIndex`, a SQLite metadata index per spec 5.3.
   `Rollout.save()`/`Rollout.load()` alone can't round-trip a rollout's
   condition/source/metadata without the caller already knowing them
