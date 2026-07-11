@@ -1,10 +1,18 @@
 """HaGRID loader, per TECHNICAL_SPEC.md Section 5.4.
 
-NOT executed or tested in this scaffolding session: this sandbox's network is
-allow-listed to GitHub/PyPI/OS package registries only and cannot reach Kaggle,
-where HaGRID is hosted. Run and verify this against real downloaded data in an
-environment with broader network access (your own machine, or Claude Code) —
-see ROADMAP.md Phase 0/1 and scripts/download_datasets.sh.
+Directory scanning (`list_hagrid_sequences`) and the MediaPipe-result-to-
+feature-vector conversion (`extract_rollout_from_frames`, implemented in
+`mediapipe_extract.py`) are both real and unit tested with zero network
+access -- see tests/test_hagrid_loader.py and tests/test_mediapipe_extract.py.
+
+NOT executed against real data in this scaffolding session: this sandbox's
+network is allow-listed to GitHub/PyPI/OS package registries only and cannot
+reach Kaggle (where HaGRID is hosted) or `storage.googleapis.com` (where
+MediaPipe's `.task` model bundles are hosted — confirmed via a direct
+request, not assumed). Run this against a real downloaded HaGRID directory
+and a real constructed HolisticLandmarker in an environment with both —
+your own machine, or Claude Code — see ROADMAP.md Phase 0/1 and
+scripts/download_datasets.sh.
 
 Requires the `perception` extra installed for MediaPipe.
 """
@@ -14,6 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..rollout import Rollout
+from .mediapipe_extract import extract_rollout_from_frames as _extract_rollout_from_frames
 
 # Canonical gesture subset relevant to the ForceHand glove's controllable DOFs
 # (grasp open/close, wrist flexion/extension) — spec 5.4 requirement: MUST
@@ -71,12 +80,15 @@ def extract_rollout_from_frames(
     surface has moved from legacy `mp.solutions` to the Tasks API since much
     of the reference material on this was written).
 
-    NOT IMPLEMENTED here — this is the one seam in the loader that genuinely
-    requires MediaPipe + real image files, neither of which this sandbox has.
+    Implemented in `mediapipe_extract.py` (shared with egohands.py) and unit
+    tested there with duck-typed fakes — see tests/test_mediapipe_extract.py.
+    What's genuinely still untested, because it needs network access this
+    sandbox's allowlist blocks (`storage.googleapis.com`, confirmed via a
+    direct request) and real downloaded frames: constructing an actual
+    HolisticLandmarker (which needs a downloaded `.task` model bundle) and
+    running this against real HaGRID images end-to-end. Do that first in an
+    environment with both available before trusting real V1 results.
     """
-    raise NotImplementedError(
-        "Implement against a real MediaPipe HolisticLandmarker instance and "
-        "downloaded HaGRID frames in an environment with both available. "
-        "See docs/data_spec.md for the exact feature-vector layout "
-        "(PERCEPTION_FEATURE_LAYOUT in data/rollout.py) this must produce."
+    return _extract_rollout_from_frames(
+        frame_paths, landmarker, frame_rate_hz=frame_rate_hz, condition=condition, source="real"
     )
