@@ -21,9 +21,17 @@ from ..rollout import Rollout
 # 18 HaGRID classes indiscriminately (comparing unrelated motion vocabularies
 # is not a domain gap measurement).
 #
-# PLACEHOLDER mapping — confirm against HaGRID's actual class list and the
-# glove's real DOFs during the Phase 0 data audit (ROADMAP.md) before relying
-# on this for anything.
+# Phase 0 data audit (ROADMAP.md), partially resolved without Kaggle access:
+# all four names below are confirmed real HaGRID v1 class names (the full set
+# of 18 is: call, dislike, fist, four, like, mute, ok, one, palm, peace,
+# peace_inverted, rock, stop, stop_inverted, three, three2, two_up,
+# two_up_inverted), and the dataset's own paper states each class contains
+# 30,000+ images (Kapitanov et al. 2022, arXiv:2206.08219) — comfortably
+# enough for any reasonable train/test split, so sample-count sufficiency is
+# no longer an open question. What's still NOT confirmed, and does need a
+# real download to check: whether these four specific gestures are actually
+# the best semantic match to the ForceHand glove's real controllable DOFs —
+# that's a domain-expertise judgment call, not a data-availability one.
 CANONICAL_GESTURES = {"fist", "palm", "stop", "like"}
 
 
