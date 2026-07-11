@@ -5,10 +5,19 @@ reflect actual status, not aspiration — update this file every session, not ju
 at the end of a phase.
 
 ## Phase 0 — Data audit
-- [ ] Confirm HaGRID canonical-gesture-subset sample counts are sufficient
-      (`CANONICAL_GESTURES` in `hagrid.py` is currently a placeholder mapping)
+- [x] Confirm HaGRID canonical-gesture-subset sample counts are sufficient —
+      resolved without needing Kaggle access: all four names in
+      `CANONICAL_GESTURES` are confirmed real HaGRID v1 class names, and the
+      dataset's own paper (Kapitanov et al. 2022, arXiv:2206.08219) states
+      each of the 18 classes contains 30,000+ images. Still open, and this
+      part *does* need real data: whether these four gestures are the best
+      semantic match to the ForceHand glove's actual DOFs.
 - [ ] Confirm Ogawa et al. (2017) is accessible (open access, or via institutional
-      library) — flagged in spec Section 14 as the one real external dependency
+      library) — flagged in spec Section 14 as the one real external dependency.
+      Checked so far: it's published in *Advanced Robotics* (Taylor & Francis,
+      subscription), and the only copy found online is a ResearchGate
+      "Request PDF" listing, not an open one — likely needs institutional
+      access or emailing the Kurita Lab directly.
 
 ## Phase 1 — Rollout schema, storage, loaders, perturbation
 - [x] `Rollout` schema + save/load round-trip (`data/rollout.py`) — tested
