@@ -55,6 +55,8 @@ dev = [
     "pytest>=8.0",
     "hypothesis>=6.100",
     "ruff>=0.4",
+    # Used only to build tiny fixture PNGs in test_mediapipe_extract.py
+    "pillow>=10.0",
 ]
 
 [project.scripts]

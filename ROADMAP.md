@@ -25,10 +25,18 @@ at the end of a phase.
       (`data/loaders/synthetic_perturb.py`) — tested
 - [x] HaGRID/EgoHands directory scanning + canonical gesture filtering — tested
       (network-free portion only)
-- [ ] HaGRID/EgoHands MediaPipe landmark extraction — **blocked**: needs real
-      downloaded frames + the `perception` extra, neither available in the
-      sandbox that produced this scaffolding. Currently a `NotImplementedError`
-      stub with the exact contract documented.
+- [x] HaGRID/EgoHands MediaPipe landmark extraction — the conversion logic
+      itself (`data/loaders/mediapipe_extract.py`: MediaPipe detection result
+      → `PERCEPTION_FEATURE_LAYOUT`-shaped array, including graceful
+      per-frame dropout handling) is real and unit tested against duck-typed
+      fakes, with zero network access needed (`tests/test_mediapipe_extract.py`).
+      **Still blocked**: actually constructing a working `HolisticLandmarker`
+      needs a `.task` model bundle from `storage.googleapis.com`, which this
+      sandbox's network allowlist blocks (confirmed via a direct request,
+      `x-deny-reason: host_not_allowed`) — combined with needing real
+      downloaded HaGRID/EgoHands frames, that part still needs an environment
+      with both. `hagrid.py`/`egohands.py` now delegate to the shared,
+      tested implementation rather than raising `NotImplementedError`.
 - [x] SQLite metadata index (spec 5.3) — `data/index.py`, tested
       (documented decision: indexed per rollout-store directory, not one
       shared repo-wide index — see `cli.py` module docstring)
@@ -96,9 +104,11 @@ hysteresis fit (on synthetic data), HTML/Markdown report generation, the full
 CLI (`train`/`analyze`/`validate`) against local rollout stores, and a demo
 notebook that runs top-to-bottom on synthetic data with zero manual steps.
 
-**Still blocked, not skipped for convenience**: the HaGRID/EgoHands MediaPipe
-extraction step (needs real downloaded frames + network access this sandbox
-doesn't have) and digitizing the real Ogawa et al. (2017) curve (needs a
-likely-paywalled Taylor & Francis figure). Both have a clearly marked seam in
-the code rather than a silent gap. Everything else in Phase 5 that doesn't
-require those two inputs is done.
+**Still blocked, not skipped for convenience**: constructing a real `HolisticLandmarker`
+(needs a model bundle from `storage.googleapis.com`, which this sandbox's network
+allowlist blocks) and running it against real downloaded HaGRID/EgoHands frames —
+the conversion logic itself is now implemented and unit tested (`mediapipe_extract.py`),
+only the model download + real frames remain. Also still blocked: digitizing the
+real Ogawa et al. (2017) curve (needs a likely-paywalled Taylor & Francis figure).
+Both have a clearly marked seam in the code rather than a silent gap. Everything
+else in Phase 5 that doesn't require those two inputs is done.
