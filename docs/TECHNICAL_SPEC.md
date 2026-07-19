@@ -2,7 +2,7 @@
 
 **Status**: Draft v0.1 — ground truth for implementation
 **Owner**: Min (Mattral)
-**Scope**: V1 (perception gap) and V2 (actuation gap), with explicit forward-compatibility notes for V3 (closed-loop, Kurita Lab hardware)
+**Scope**: V1 (perception gap) and V2 (actuation gap), with explicit forward-compatibility notes for V3 (closed-loop, real hardware)
 **Convention**: Requirements use MUST / SHOULD / MAY per RFC 2119 — MUST is non-negotiable for a version to be considered complete, SHOULD is a strong default that can be consciously overridden and documented, MAY is optional.
 
 ---
@@ -31,13 +31,13 @@
 
 ## 1. Project Summary & Goals
 
-This project builds a **reusable, embodiment-agnostic tool that quantifies the gap between two data domains before any policy or control system is deployed on real hardware**. The original framing was sim-vs-real for robot control policies. This spec targets a more specific and more immediately buildable version: quantifying the gap between **controlled-condition hand/pose tracking data** and **target-deployment-condition data** (home lighting, occlusion, motor-impairment-like motion), as a preparatory risk-quantification instrument for vision-based rehabilitation exoskeleton control — directly relevant to the "Vision-Based Non-Contact Gesture Control for Pneumatic Soft Exoskeletons" research direction discussed with Prof. Kurita (ForceHand glove, PGM actuation, MediaPipe Pose+Hands front end, confidence-threshold safety layer).
+This project builds a **reusable, embodiment-agnostic tool that quantifies the gap between two data domains before any policy or control system is deployed on real hardware**. The original framing was sim-vs-real for robot control policies. This spec targets a more specific and more immediately buildable version: quantifying the gap between **controlled-condition hand/pose tracking data** and **target-deployment-condition data** (home lighting, occlusion, motor-impairment-like motion), as a preparatory risk-quantification instrument for vision-based rehabilitation exoskeleton control — directly relevant to vision-based non-contact gesture control for pneumatic soft exoskeletons (ForceHand-style glove, PGM actuation per Ogawa et al. 2017 and Thakur et al. 2018, MediaPipe Pose+Hands front end, confidence-threshold safety layer).
 
 **Primary goal**: build a tool that, given two sets of rollouts (source domain, target domain), outputs a single defensible number (plus supporting diagnostics) predicting how much a downstream system's behavior will degrade moving from source to target — validated against measurable ground truth, without touching robot or exoskeleton hardware.
 
 **Secondary goal**: the same core code MUST work unmodified for a second modality (PGM actuator pressure→response) by swapping only the encoder — proving the "reusable infra" thesis rather than asserting it.
 
-**Non-goal for this spec**: building any part of the actual ForceHand/exosuit control system, gesture-mapping engine, or safety layer described in the Kurita proposal. This tool produces evidence that could inform that system later; it does not implement it.
+**Non-goal for this spec**: building any part of the actual ForceHand/exosuit control system, gesture-mapping engine, or safety layer for this application domain. This tool produces evidence that could inform that system later; it does not implement it.
 
 ---
 
@@ -122,7 +122,7 @@ class Rollout:
 
 ### 5.2 Normalization (MUST, V1)
 
-- Translate landmarks relative to a reference point: hip-midpoint for pose, wrist for each hand (this mirrors the normalization already used in the Kurita Lab's own gesture pipeline description, so any results transfer conceptually).
+- Translate landmarks relative to a reference point: hip-midpoint for pose, wrist for each hand (a standard normalization convention for pose-relative landmark features, so results transfer conceptually to other gesture-tracking pipelines using the same convention).
 - Scale by a reference length: shoulder width for pose, hand bounding-box diagonal for each hand.
 - Normalization parameters (reference point, scale factor) MUST be stored per-frame in metadata, not discarded, so raw values are always recoverable.
 
@@ -406,7 +406,7 @@ This section is intentionally exhaustive. Each item MUST have its stated mitigat
 
 ## 14. Risks & Open Dependencies
 
-- **Ogawa et al. (2017) access**: not yet confirmed available via open access or institutional library. This is the one external dependency in V2 that isn't purely self-directed — check early, don't discover it as a blocker mid-implementation.
+- **Ogawa et al. (2017) access**: **resolved** — obtained, along with Thakur et al. (2018), a follow-up paper with a directly reusable fitted force-pressure equation for the same class of actuator. See `docs/pgm_reference_data.md`. What's still open: the two papers describe two different physical PGM prototypes (250mm vs. 300mm natural length) with different measured quantities (elongation-under-load hysteresis loop vs. force-at-fixed-length), so they are integrated as two separate, clearly-labeled reference points rather than merged into one dataset — and the full continuous pressure-elongation curves (Ogawa Fig. 4/5) still need WebPlotDigitizer-grade extraction for the hysteresis fit itself; only the text-quoted numbers (dimensions, pressure range, Thakur's equations, Ogawa's Fig. 6 comparison table) are integrated so far.
 - **Validation correlation may simply be weak**: it's possible the pre-registered condition set produces a Spearman ρ with a CI that includes zero. This is a legitimate, reportable outcome, not a failure to hide — the spec's acceptance criteria (13) require the analysis to be run and reported honestly, not that a specific ρ threshold be hit.
 - **JEPA collapse risk is real, not hypothetical**: budget implementation time for the collapse safeguard and possible VICReg-style regularization, rather than assuming default hyperparameters will simply work.
 - **HaGRID gesture vocabulary may not map cleanly** onto ForceHand-relevant DOFs; the canonical-subset filtering (5.4) may leave fewer usable samples than expected — check this early with a quick data audit before committing to the full training pipeline.
@@ -415,14 +415,14 @@ This section is intentionally exhaustive. Each item MUST have its stated mitigat
 
 ## 15. V3 Forward-Compatibility Notes
 
-V3 is **not started** and is contingent on Kurita Lab access. What changes, and what does not:
+V3 is **not started** and is contingent on real ForceHand-style hardware access. What changes, and what does not:
 
 **Does NOT change**: World Model Core, Divergence Module, Validation Harness, `GapAnalyzer` API, `Rollout` schema.
 
 **DOES change**:
 - A new data loader replacing synthetic perturbation (V1) / digitized-curve proxy (V2) with live logged telemetry from the real ForceHand glove and real deployment-condition camera footage.
-- The ground-truth degradation signal for validation becomes real measured task performance (the human-participant study the Kurita proposal already plans: vision-based control vs. sensor-glove interface), replacing MediaPipe-confidence-only and simulated-actuator-residual proxies.
-- Ethics/IRB approval becomes a hard prerequisite, owned by the lab, not this project.
+- The ground-truth degradation signal for validation becomes real measured task performance (a human-participant study comparing vision-based control vs. sensor-glove interface, as is standard for evaluating this class of assistive device — see Thakur et al. 2018 §III for the sEMG-based evaluation methodology this would extend), replacing MediaPipe-confidence-only and simulated-actuator-residual proxies.
+- Ethics/IRB approval becomes a hard prerequisite, owned by whatever institution runs the human-participant study, not this project.
 
 If implementing V3 ever requires touching the World Model Core, Divergence Module, or Validation Harness, that is a signal the V1/V2 architecture had a hidden assumption that should be fixed retroactively, not worked around.
 
@@ -432,21 +432,22 @@ If implementing V3 ever requires touching the World Model Core, Divergence Modul
 
 Relative phases, not calendar dates (adjust to actual available time):
 
-- **Phase 0**: Data audit — confirm HaGRID canonical-subset sample counts are sufficient; confirm Ogawa et al. accessibility.
+- **Phase 0**: Data audit — confirm HaGRID canonical-subset sample counts are sufficient (done, see ROADMAP.md); confirm Ogawa et al. accessibility (done — see Section 17 references and `docs/pgm_reference_data.md`).
 - **Phase 1**: Rollout schema, storage layer, HaGRID/EgoHands loaders, synthetic perturbation pipeline.
 - **Phase 2**: World model core + landmark encoder + collapse safeguard, trained and sanity-checked.
 - **Phase 3**: Divergence module (Fréchet + MMD) with numerical-stability tests.
 - **Phase 4**: Validation harness on pre-registered condition set; V1 acceptance criteria met.
 - **Phase 5**: Packaging, CLI, demo notebook, V1 release.
 - **Phase 6**: V2 — digitization, actuator encoder, modality-swap test, V2 acceptance criteria met.
-- **Phase 7 (deferred)**: V3, contingent on lab access.
+- **Phase 7 (deferred)**: V3, contingent on real hardware access.
 
 ---
 
 ## 17. References
 
-- Kurita Laboratory research proposal (internal document, shared in this conversation): "Vision-Based Non-Contact Gesture Control for Pneumatic Soft Exoskeletons."
-- Ogawa et al. (2017) — PGM pressure-response characterization (referenced by the above proposal; not yet independently retrieved).
+- Ogawa, K., Thakur, C., Ikeda, T., Tsuji, T., & Kurita, Y. (2017). Development of a pneumatic artificial muscle driven by low pressure and its application to the unplugged powered suit. *Advanced Robotics*, 31(21), 1135–1143. https://doi.org/10.1080/01691864.2017.1392345
+- Thakur, C., Ogawa, K., Tsuji, T., & Kurita, Y. (2018). Soft Wearable Augmented Walking Suit With Pneumatic Gel Muscles and Stance Phase Detection System to Assist Gait. *IEEE Robotics and Automation Letters*, 3(4), 4257–4264. https://doi.org/10.1109/LRA.2018.2864355
+- See `docs/pgm_reference_data.md` for the full transcription of PGM prototype specs, pressure ranges, and fitted equations extracted from the above two papers, and an explicit note on why they describe two different physical prototypes that should not be merged into one dataset.
 - MediaPipe Tasks API documentation (Pose Landmarker, Hand Landmarker, Holistic Landmarker) — `ai.google.dev/edge/mediapipe`.
 - HaGRID dataset — Kapitanov et al., "HaGRID — HAnd Gesture Recognition Image Dataset," arXiv:2206.08219.
 - Heusel et al. (2017), Fréchet Inception Distance formulation — basis for Section 7.1's metric.

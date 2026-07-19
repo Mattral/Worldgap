@@ -12,12 +12,10 @@ at the end of a phase.
       each of the 18 classes contains 30,000+ images. Still open, and this
       part *does* need real data: whether these four gestures are the best
       semantic match to the ForceHand glove's actual DOFs.
-- [ ] Confirm Ogawa et al. (2017) is accessible (open access, or via institutional
-      library) — flagged in spec Section 14 as the one real external dependency.
-      Checked so far: it's published in *Advanced Robotics* (Taylor & Francis,
-      subscription), and the only copy found online is a ResearchGate
-      "Request PDF" listing, not an open one — likely needs institutional
-      access or emailing the Kurita Lab directly.
+- [x] Confirm Ogawa et al. (2017) is accessible — **resolved**. Both Ogawa et al.
+      (2017) and Thakur et al. (2018, a follow-up paper with a directly reusable
+      fitted force-pressure equation) have been obtained. See
+      `docs/pgm_reference_data.md` for the full transcription and citations.
 
 ## Phase 1 — Rollout schema, storage, loaders, perturbation
 - [x] `Rollout` schema + save/load round-trip (`data/rollout.py`) — tested
@@ -83,11 +81,19 @@ at the end of a phase.
 - [x] Two-branch hysteresis-aware curve fit (spec 5.5, edge case 12.13) — tested
       on synthetic hysteresis data, including a test that the naive
       single-branch mistake is actually caught by the residual-structure check
-- [ ] Digitize real Ogawa et al. curve via WebPlotDigitizer — blocked on Phase 0
+- [x] Real Ogawa et al. (2017) / Thakur et al. (2018) reference data obtained
+      and integrated — real prototype dimensions, pressure ranges, and
+      Thakur's fitted force-pressure equations are now in `pgm_actuator.py`
+      (see `docs/pgm_reference_data.md`). Still open: digitizing the full
+      continuous pressure-elongation curves from Ogawa Fig. 4/5 and Thakur
+      Fig. 2/4 via WebPlotDigitizer for the hysteresis fit itself — the
+      numbers obtained so far are the exact figures/equations quoted in each
+      paper's own text, not yet a pixel-digitized curve.
 - [ ] `test_modality_swap.py`-style end-to-end run on real PGM data — blocked
+      on the digitization above
 
 ## Phase 7 — V3 (deferred)
-- [ ] Not started. Contingent on Kurita Lab access (spec Section 15). What
+- [ ] Not started. Contingent on real hardware access (spec Section 15). What
       changes and what doesn't is already documented there — no new design work
       needed until access exists, only a new data loader.
 
