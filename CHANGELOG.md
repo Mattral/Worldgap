@@ -7,6 +7,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `docs/pgm_reference_data.md`: real PGM reference data obtained directly
+  from Ogawa et al. (2017) and Thakur et al. (2018) — resolves the spec
+  Section 14 / ROADMAP Phase 0 & 6 "Ogawa et al. access" item. Documents that
+  the two papers describe two *different* physical PGM prototypes (250mm vs
+  300mm natural length, measuring different physical quantities) and should
+  not be merged into one dataset.
+- `pgm_actuator.py`: added `OGAWA_2017_PROTOTYPE`/`THAKUR_2018_PROTOTYPE`
+  (real dimensions + citations), `OGAWA_2017_PGM_VS_PM10RF_AT_0_2MPA` (real
+  contraction/elongation comparison table transcribed from the paper's own
+  text), and `thakur2018_force_from_pressure()` — Thakur's two directly
+  reusable fitted force-pressure equations (R²=0.993/0.998), validated
+  against the paper's own reported sanity-check values (60kPa→~30N,
+  100kPa→~44N stretched) and raising outside the paper's validated 50-300 kPa
+  range rather than silently extrapolating. 5 new tests
+  (`tests/test_pgm_hysteresis.py`). Still pending: digitizing the full
+  continuous pressure-elongation curves (Ogawa Fig. 4/5) for the hysteresis
+  fit itself — see `docs/pgm_reference_data.md` for exactly what's extracted
+  vs. still needed.
+- `data/loaders/mediapipe_extract.py`: real, unit-tested implementation of
+  the MediaPipe-result → `PERCEPTION_FEATURE_LAYOUT` conversion (spec 5.4),
+  shared by `hagrid.py` and `egohands.py` (both now delegate here instead of
+  raising `NotImplementedError`). Handles per-frame dropout (no detection at
+  all) by setting `presence_mask=False` rather than dropping or interpolating
+  the frame, matching spec 8.1's requirement that MediaPipe dropout rate stay
+  measurable. Tested against duck-typed fake landmark/result objects
+  (`tests/test_mediapipe_extract.py`) — no real `mediapipe` install needed for
+  8 of 10 tests; the 2 that build real `mp.Image` objects skip cleanly via
+  `pytest.importorskip` rather than erroring when the `perception` extra isn't
+  installed. Confirmed via a direct request that `storage.googleapis.com`
+  (where MediaPipe's `.task` model bundles are hosted) is blocked by this
+  sandbox's network allowlist (`x-deny-reason: host_not_allowed`) — so
+  constructing a real `HolisticLandmarker` and running this against real
+  HaGRID/EgoHands frames remains the one genuinely blocked piece.
+- `pyproject.toml`: added `pillow` to the `dev` extra (used by the two
+  fixture-image tests above).
+
 - `pyproject.toml`: added `[project.urls]` (Homepage/Repository/Issues/Changelog)
   and completed the classifier list (Python 3.10/3.11/3.12, OS Independent,
   `Human Machine Interfaces` in place of a nonexistent `Robotics` topic
