@@ -50,14 +50,21 @@ class _Result:
 
 
 class _FakeLandmarker:
-    """Drops hands on `dropout_every`-th frame and jitters landmark positions."""
+    """Drops hands on `dropout_every`-th frame and jitters landmark positions.
 
-    def __init__(self, dropout_every: int | None, visibility: float, noise: float):
+    Enforces the one MediaPipe VIDEO-mode rule that bit the first real run:
+    timestamps must increase monotonically over the landmarker's lifetime.
+    Without this the fake accepted a single landmarker shared across videos,
+    which the real one rejects on the second file.
+    """
+
+    def __init__(self, dropout_every: int | None, visibility: float, noise: float, seed: int = 0):
         self.dropout_every = dropout_every
         self.visibility = visibility
         self.noise = noise
         self._n = 0
-        self._rng = np.random.default_rng(0)
+        self._rng = np.random.default_rng(seed)
+        self._last_ts: int | None = None
 
     def _next(self):
         hands = True
@@ -70,7 +77,10 @@ class _FakeLandmarker:
     def detect(self, _image):
         return self._next()
 
-    def detect_for_video(self, _image, _ts):
+    def detect_for_video(self, _image, ts):
+        if self._last_ts is not None and ts <= self._last_ts:
+            raise ValueError("Input timestamp must be monotonically increasing.")
+        self._last_ts = ts
         return self._next()
 
     def close(self):
@@ -101,36 +111,28 @@ def test_script_runs_end_to_end_and_writes_every_artifact(recordings, tmp_path, 
     module = _load_script()
     out = tmp_path / "v1_run"
 
-    fakes = {
-        "clean": _FakeLandmarker(dropout_every=None, visibility=0.95, noise=0.01),
-        "dim": _FakeLandmarker(dropout_every=5, visibility=0.6, noise=0.05),
-        "occluded": _FakeLandmarker(dropout_every=2, visibility=0.4, noise=0.09),
+    params = {
+        "clean": {"dropout_every": None, "visibility": 0.95, "noise": 0.01},
+        "dim": {"dropout_every": 5, "visibility": 0.6, "noise": 0.05},
+        "occluded": {"dropout_every": 2, "visibility": 0.4, "noise": 0.09},
     }
+    current = {"name": "clean"}
+    built = []
 
-    # one landmarker per condition, handed out in the order the script asks
-    order = iter(["clean", "dim", "occluded"])
+    def _build(*_a, **_k):
+        # distinct seed per video: real takes never repeat exactly, and
+        # identical takes make the Frechet covariance near-singular
+        fake = _FakeLandmarker(**params[current["name"]], seed=len(built))
+        built.append(fake)
+        return fake
 
-    class _Dispatcher:
-        def __init__(self):
-            self.current = fakes["clean"]
-
-        def detect(self, image):
-            return self.current.detect(image)
-
-        def detect_for_video(self, image, ts):
-            return self.current.detect_for_video(image, ts)
-
-        def close(self):
-            pass
-
-    dispatcher = _Dispatcher()
-    monkeypatch.setattr(module, "build_landmarker", lambda *_a, **_k: dispatcher)
+    monkeypatch.setattr(module, "build_landmarker", _build)
 
     real_extract = module.extract_condition
 
-    def _extract(name, videos, landmarker, *a, **k):
-        dispatcher.current = fakes[name]
-        return real_extract(name, videos, landmarker, *a, **k)
+    def _extract(name, videos, make_landmarker, *a, **k):
+        current["name"] = name
+        return real_extract(name, videos, make_landmarker, *a, **k)
 
     monkeypatch.setattr(module, "extract_condition", _extract)
     monkeypatch.setattr(
@@ -144,9 +146,8 @@ def test_script_runs_end_to_end_and_writes_every_artifact(recordings, tmp_path, 
             "--epochs", "3",
         ],
     )
-    del order
-
     assert module.main() == 0
+    assert len(built) == 6  # one landmarker per video (3 conditions x 2 takes)
 
     # every artifact the runbook promises actually exists
     assert (out / "preregistered_conditions.json").exists()
@@ -164,17 +165,52 @@ def test_ground_truth_separates_the_conditions_it_should(recordings, monkeypatch
     module = _load_script()
 
     values = {}
-    for name, fake in {
-        "clean": _FakeLandmarker(None, 0.95, 0.01),
-        "dim": _FakeLandmarker(5, 0.6, 0.05),
-        "occluded": _FakeLandmarker(2, 0.4, 0.09),
+    for name, args in {
+        "clean": (None, 0.95, 0.01),
+        "dim": (5, 0.6, 0.05),
+        "occluded": (2, 0.4, 0.09),
     }.items():
         _rollouts, gts = module.extract_condition(
-            name, module.list_videos(recordings / name), fake, 32, None, 1
+            name,
+            module.list_videos(recordings / name),
+            lambda args=args: _FakeLandmarker(*args),
+            32,
+            None,
+            1,
         )
         values[name] = module.aggregate_ground_truth(gts)
 
     assert values["clean"] < values["dim"] < values["occluded"]
+
+
+def test_each_video_gets_a_fresh_landmarker(recordings):
+    """Regression: the first real run crashed on its second video because one
+    VIDEO-mode landmarker was shared across files whose timestamps each start
+    at 0. A shared landmarker must fail (as MediaPipe's does), and
+    extract_condition must build and close one per video.
+    """
+    module = _load_script()
+    videos = module.list_videos(recordings / "clean")
+    assert len(videos) == 2
+
+    shared = _FakeLandmarker(None, 0.95, 0.01)
+    with pytest.raises(ValueError, match="monotonically increasing"):
+        module.extract_condition("clean", videos, lambda: shared, 32, None, 1)
+
+    built, closed = [], []
+
+    class _Tracked(_FakeLandmarker):
+        def close(self):
+            closed.append(self)
+
+    def _make():
+        built.append(_Tracked(None, 0.95, 0.01))
+        return built[-1]
+
+    _rollouts, gts = module.extract_condition("clean", videos, _make, 32, None, 1)
+    assert len(gts) == 2
+    assert len(built) == 2 and built[0] is not built[1]
+    assert closed == built
 
 
 def test_missing_clean_directory_is_a_clear_error(tmp_path, monkeypatch, capsys):

@@ -4,6 +4,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`scripts/run_v1_real_data.py` crashed on the second video of the first
+  real run** with `ValueError: Input timestamp must be monotonically
+  increasing`. It built one VIDEO-mode `HolisticLandmarker` and reused it for
+  every file, but each file's timestamps restart at 0. It now builds a fresh
+  landmarker per video and closes it afterwards. That also stops MediaPipe's
+  frame-to-frame tracking state from carrying from the end of one recording
+  into the next (shifting timestamps instead would have hidden the error but
+  kept that contamination). The test fake now enforces the same timestamp
+  rule, which is why the smoke tests had passed; the new
+  `test_each_video_gets_a_fresh_landmarker` fails against the old script.
+
 ### Removed
 
 - **The `actuation` extra** (`mujoco>=3.1`). Nothing imported MuJoCo: the V2
