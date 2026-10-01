@@ -142,12 +142,10 @@ def test_validate_end_to_end(tmp_path, capsys):
     truth_csv = tmp_path / "ground_truth.csv"
     with open(gap_csv, "w") as f:
         f.write("lighting,occlusion,gap_score\n")
-        for c, g in zip(conditions, gap_scores):
-            f.write(f"{c['lighting']},{c['occlusion']},{g}\n")
+        f.writelines(f"{c['lighting']},{c['occlusion']},{g}\n" for c, g in zip(conditions, gap_scores))
     with open(truth_csv, "w") as f:
         f.write("lighting,occlusion,ground_truth_degradation\n")
-        for c, g in zip(conditions, ground_truth):
-            f.write(f"{c['lighting']},{c['occlusion']},{g}\n")
+        f.writelines(f"{c['lighting']},{c['occlusion']},{g}\n" for c, g in zip(conditions, ground_truth))
 
     exit_code = main(["validate", "--gap-scores", str(gap_csv), "--ground-truth", str(truth_csv)])
     assert exit_code == 0

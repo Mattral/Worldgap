@@ -9,6 +9,7 @@ architecture has a hidden assumption that needs fixing here, not around it.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -93,9 +94,42 @@ class _WindowDataset(Dataset):
 class GapAnalyzer:
     def __init__(self, config: GapConfig):
         self.config = config
+        # Seed BEFORE the model is constructed, not only in fit().
+        #
+        # This was a real reproducibility bug up to 0.1.0: `fit()` called
+        # torch.manual_seed(), but by then every encoder weight and the
+        # predictor had already been initialized from whatever global RNG state
+        # happened to exist when GapAnalyzer was constructed. The seed therefore
+        # controlled only batch shuffling and dropout, and two runs of the same
+        # script with the same config produced different gap scores -- which
+        # makes a config file exactly not "a complete record of what produced a
+        # given result" (spec 12.18). Caught by running the V2 script twice.
+        torch.manual_seed(config.training.seed)
         self.model = WorldModel(encoder_factory=self._build_encoder, config=config.world_model)
+        # What is and isn't optimized here, spelled out because it is not
+        # obvious from the parameter list alone:
+        #
+        # - `context_encoder`, `predictor` and `future_mask_tokens` all receive
+        #   gradient from the JEPA loss and MUST be in this list. The mask
+        #   tokens in particular: leaving them out (as an earlier version of
+        #   this line did, before they existed) would freeze them at their
+        #   random init, so per-future-frame predictions would differ from each
+        #   other arbitrarily rather than in a learned way.
+        # - `target_encoder` is deliberately absent: spec 6.3 requires it be
+        #   updated only by EMA, never by gradient descent.
+        # - `summary_head` is also absent, and this is a real property of the
+        #   design worth knowing: it is only ever applied inside
+        #   `encode_rollout_summary()`, which runs under `torch.no_grad()`, so
+        #   no gradient ever reaches it and it stays a FIXED RANDOM LINEAR
+        #   PROJECTION from d_model to summary_dim. That is defensible (a
+        #   random projection approximately preserves relative distances, which
+        #   is all the divergence metrics need) but it is a design choice, not
+        #   an accident, and it means the summary space is not learned. See
+        #   docs/TECHNICAL_SPEC.md Section 6.3's implementation note.
         self.optimizer = torch.optim.AdamW(
-            list(self.model.context_encoder.parameters()) + list(self.model.predictor.parameters()),
+            list(self.model.context_encoder.parameters())
+            + list(self.model.predictor.parameters())
+            + [self.model.future_mask_tokens],
             lr=config.training.lr,
             weight_decay=config.training.weight_decay,
         )
@@ -113,10 +147,58 @@ class GapAnalyzer:
         wm_cfg = self.config.world_model
         dataset = _WindowDataset(rollouts, wm_cfg.context_frames, wm_cfg.predict_frames)
         if len(dataset) == 0:
+            static = sum(1 for r in rollouts if r.temporal_provenance == "static_pose")
+            hint = ""
+            if static:
+                hint = (
+                    f" {static} of {len(rollouts)} are temporal_provenance='static_pose' "
+                    "(single still images, T=1). A JEPA objective predicts a future "
+                    "window from a context window; a photograph has neither. Fit on "
+                    "video rollouts and use the fitted model to encode these, or use "
+                    "the non-temporal comparison path -- see "
+                    "docs/temporal_provenance.md."
+                )
             raise ValueError(
                 "no rollouts long enough for the configured context+predict window "
                 f"({wm_cfg.context_frames + wm_cfg.predict_frames} frames); "
-                f"{dataset.skipped} rollouts were too short and 0 were usable."
+                f"{dataset.skipped} rollouts were too short and 0 were usable.{hint}"
+            )
+
+        # Temporal-provenance guard. Deliberately asymmetric, because the two
+        # cases deserve different treatment:
+        #
+        #  - A rollout that *declares* a non-temporal provenance is a caller
+        #    stating, in writing, that its frame ordering is not observation
+        #    order. Training a next-window predictor on that is modelling an
+        #    artifact, so it raises.
+        #  - A rollout that declares nothing is legacy or hand-constructed. It
+        #    warns rather than raising: this field arrived after 0.1.0, and
+        #    breaking every existing caller to enforce a metadata key would be
+        #    a worse trade than saying so loudly.
+        declared_unordered = [
+            r
+            for r in rollouts
+            if r.temporal_provenance is not None and not r.has_ordered_time_axis
+        ]
+        if declared_unordered and len(declared_unordered) == len(rollouts):
+            provenances = sorted({str(r.temporal_provenance) for r in rollouts})
+            raise ValueError(
+                "every rollout passed to fit() declares a time axis that does not "
+                f"reflect real sequential observation (temporal_provenance in "
+                f"{provenances}). The world model's objective is predicting how a "
+                "trajectory continues, so training it on ordering that isn't temporal "
+                "produces a model of an artifact. Fit on video (or simulated) "
+                "rollouts -- see docs/temporal_provenance.md."
+            )
+        if not any(r.temporal_provenance for r in rollouts):
+            warnings.warn(
+                "none of these rollouts declare metadata['temporal_provenance'], so "
+                "worldgap cannot tell whether their frame ordering is real observation "
+                "order. If they came from a video or a simulator, set it to 'video' or "
+                "'simulated'; if they are unrelated stills, they should not be trained "
+                "on at all. See docs/temporal_provenance.md.",
+                UserWarning,
+                stacklevel=2,
             )
         loader = DataLoader(
             dataset, batch_size=min(self.config.training.batch_size, len(dataset)), shuffle=True
@@ -172,6 +254,13 @@ class GapAnalyzer:
                 f"low sample-size confidence (n_source={fd.n_source}, n_target={fd.n_target}, "
                 f"latent_dim={fd.latent_dim}) — see spec Section 7.3"
             )
+        if mmd.below_noise_floor:
+            warnings.append(
+                f"MMD² is negative ({mmd.mmd_squared:.6f}). This is the unbiased "
+                "estimator behaving correctly, not a bug: it means no difference "
+                "between these domains is detectable at this sample size. Do not rank "
+                "conditions by the magnitude of a negative MMD² — see spec Section 7.2."
+            )
         return GapResult(frechet=fd, mmd=mmd, warnings=warnings)
 
     # -- Persistence -----------------------------------------------------
@@ -197,7 +286,7 @@ class GapAnalyzer:
         )
 
     @classmethod
-    def load_checkpoint(cls, path: str | Path) -> "GapAnalyzer":
+    def load_checkpoint(cls, path: str | Path) -> GapAnalyzer:
         """Reconstructs a GapAnalyzer from a checkpoint written by
         `save_checkpoint`. Loads with `weights_only=False` since the
         checkpoint intentionally carries a GapConfig object, not just

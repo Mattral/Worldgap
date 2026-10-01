@@ -9,11 +9,11 @@ architecture level (spec Section 15), not a per-version patch.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from ..config import WorldModelConfig
 from .collapse import CollapseSafeguard
@@ -34,8 +34,23 @@ class WorldModel(nn.Module):
             p.requires_grad_(False)
 
         d_model = self.context_encoder.d_model
+
+        # Spec 6.3: the predictor takes "the context encoder's pooled
+        # representation (+ learned mask tokens for future positions)" and
+        # predicts "the target encoder's latent output FOR EACH FUTURE FRAME".
+        #
+        # One learned token per future offset is what makes the prediction
+        # per-frame rather than one vector broadcast over the horizon. Without
+        # these the predictor has no way to distinguish "the frame 1 step
+        # ahead" from "the frame 8 steps ahead", so the best it can do is
+        # predict the mean future latent — which throws away exactly the
+        # temporal structure V1's trajectory framing depends on. See CHANGELOG
+        # (0.2.0) for the correction; releases up to 0.1.0 broadcast instead.
+        self.future_mask_tokens = nn.Parameter(torch.zeros(config.predict_frames, d_model))
+        nn.init.normal_(self.future_mask_tokens, std=0.02)
+
         self.predictor = nn.Sequential(
-            nn.Linear(d_model, d_model),
+            nn.Linear(2 * d_model, d_model),
             nn.ReLU(),
             nn.Linear(d_model, d_model),
         )
@@ -66,8 +81,22 @@ class WorldModel(nn.Module):
         ctx_presence = frame_presence_from_mask(context_mask)
         ctx_summary = masked_mean_pool(ctx_h, ctx_presence)  # (B, d)
 
-        predicted = self.predictor(ctx_summary).unsqueeze(1)  # (B, 1, d)
-        predicted = predicted.expand(-1, future_x.shape[1], -1)  # (B, Tp, d)
+        n_future = future_x.shape[1]
+        if n_future > self.future_mask_tokens.shape[0]:
+            raise ValueError(
+                f"future window has {n_future} frames but only "
+                f"{self.future_mask_tokens.shape[0]} learned mask tokens exist "
+                "(WorldModelConfig.predict_frames). Raise predict_frames to at "
+                "least the longest future window you intend to train on -- this "
+                "refuses to silently reuse or interpolate tokens it never learned."
+            )
+
+        batch = ctx_summary.shape[0]
+        # (B, Tp, d): the same pooled context paired with a distinct learned
+        # token per future offset, so each future frame gets its own prediction.
+        ctx_repeated = ctx_summary.unsqueeze(1).expand(-1, n_future, -1)
+        tokens = self.future_mask_tokens[:n_future].unsqueeze(0).expand(batch, -1, -1)
+        predicted = self.predictor(torch.cat([ctx_repeated, tokens], dim=-1))
 
         with torch.no_grad():
             target = self.target_encoder(future_x, future_mask)  # (B, Tp, d), stop-gradient

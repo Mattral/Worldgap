@@ -34,7 +34,13 @@ from pathlib import Path
 
 import numpy as np
 
-from ..rollout import PERCEPTION_FEATURE_LAYOUT, PERCEPTION_STATE_DIM, Rollout
+from ..rollout import (
+    PERCEPTION_FEATURE_LAYOUT,
+    PERCEPTION_STATE_DIM,
+    TEMPORAL_PROVENANCE_KEY,
+    TEMPORAL_PROVENANCE_MEANING,
+    Rollout,
+)
 
 
 def _landmark_block(landmarks, n_landmarks: int, dims: tuple[str, ...]) -> tuple[np.ndarray, np.ndarray]:
@@ -106,12 +112,19 @@ def extract_rollout_from_frames(
     condition: dict | None = None,
     source: str = "real",
     metadata: dict | None = None,
+    temporal_provenance: str = "video",
 ) -> Rollout:
     """Runs `landmarker` (an already-constructed object with a `.detect(image)`
     method -- typically `mediapipe.tasks.python.vision.HolisticLandmarker`,
     but any duck-typed equivalent works, which is exactly what makes this
     testable without a real model file) over a sequence of frame image files
     and packages the landmark trajectory as a `Rollout`.
+
+    `temporal_provenance` is recorded into the Rollout's metadata and defaults
+    to `"video"`, because that is what "a sequence of frames" means. **If your
+    frame_paths are unrelated stills that merely live in the same folder, this
+    default is a lie and you want `extract_static_pose_rollouts()` in
+    `hagrid.py` instead** -- see `docs/temporal_provenance.md`.
 
     Frames where nothing was detected are NOT dropped or interpolated --
     they're kept with `presence_mask=False` for the relevant columns, so
@@ -121,6 +134,11 @@ def extract_rollout_from_frames(
     """
     if not frame_paths:
         raise ValueError("frame_paths is empty -- nothing to extract")
+    if temporal_provenance not in TEMPORAL_PROVENANCE_MEANING:
+        raise ValueError(
+            f"temporal_provenance={temporal_provenance!r} is not one of "
+            f"{sorted(TEMPORAL_PROVENANCE_MEANING)}"
+        )
 
     try:
         import mediapipe as mp
@@ -151,5 +169,5 @@ def extract_rollout_from_frames(
         states=states,
         presence_mask=presence_mask.astype(np.float64),
         timestamps_ms=timestamps_ms,
-        metadata=metadata or {},
+        metadata={**(metadata or {}), TEMPORAL_PROVENANCE_KEY: temporal_provenance},
     )

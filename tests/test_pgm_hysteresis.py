@@ -2,12 +2,15 @@ import numpy as np
 import pytest
 
 from worldgap.data.loaders.pgm_actuator import (
-    HysteresisCurveFit,
+    OGAWA_2017_FIG4A_AVAILABLE_PRESSURES_MPA,
+    OGAWA_2017_MAX_ELONGATION_MM,
     OGAWA_2017_PGM_VS_PM10RF_AT_0_2MPA,
     OGAWA_2017_PROTOTYPE,
     THAKUR_2018_PROTOTYPE,
+    HysteresisCurveFit,
     check_residual_structure,
     fit_hysteresis_curve,
+    load_ogawa2017_fig4a_curve,
     predict,
     thakur2018_force_from_pressure,
 )
@@ -96,10 +99,17 @@ def test_thakur_equation_raises_outside_validated_pressure_range():
         thakur2018_force_from_pressure(350.0, stretched=True)  # above 300 kPa
 
 
-def test_prototype_specs_reflect_the_two_different_physical_units():
-    """Regression guard against ever accidentally merging these -- they are
-    genuinely different hardware (see docs/pgm_reference_data.md), and a
-    future edit collapsing them into one shared spec would be a real bug.
+def test_prototype_specs_preserve_each_papers_own_reported_dimensions():
+    """Regression guard against "tidying up" the disagreement away.
+
+    These are NOT two different actuators -- Thakur 2018 Section II.A
+    describes the PGM as the one "we previously developed" citing Ogawa 2017
+    (see docs/pgm_reference_data.md). But the two papers report its
+    dimensions inconsistently (Ogawa Section 2.3 says 250 mm natural, Ogawa
+    Section 4 says 300 mm normal, Thakur says 300 mm resting), and worldgap
+    stores what each paper actually said rather than picking a winner. A
+    future edit that collapses these into one "reconciled" spec would be
+    fabricating agreement the literature doesn't have.
     """
     assert OGAWA_2017_PROTOTYPE.natural_length_mm == 250.0
     assert THAKUR_2018_PROTOTYPE.natural_length_mm == 300.0
@@ -120,3 +130,60 @@ def test_ogawa_comparison_table_pgm_beats_commercial_pam_on_contraction():
         pgm_contraction, _ = pgm[force_n]
         pm10rf_contraction, _ = pm10rf[force_n]
         assert pgm_contraction > pm10rf_contraction
+
+
+# --- Real digitized Length(Force) curves (Ogawa et al. 2017 Figure 4a) ------
+
+
+def test_all_seven_pressure_levels_load_and_are_monotonic():
+    """Physical sanity check: elongation must be non-decreasing with applied
+    load in this quasi-static test. Isotonic smoothing inside the loader
+    enforces this, so a violation here means the loader itself is broken.
+    """
+    assert len(OGAWA_2017_FIG4A_AVAILABLE_PRESSURES_MPA) == 7
+    for pressure in OGAWA_2017_FIG4A_AVAILABLE_PRESSURES_MPA:
+        curve = load_ogawa2017_fig4a_curve(pressure)
+        assert curve.pressure_mpa == pressure
+        assert len(curve.force_n) > 50  # digitized at ~0.5N resolution over ~0-49N
+        assert np.all(np.diff(curve.length_mm) >= -1e-9)
+        assert curve.digitization_noise_floor_mm >= 0.0
+
+
+def test_higher_pressure_gives_shorter_length_at_shared_force():
+    """Cross-curve sanity check: at a force level every curve actually
+    covers, higher supply pressure should mean a shorter (more contracted)
+    muscle -- this is the whole point of a pneumatic actuator. Checked at
+    Force=30N, comfortably inside every curve's digitized range.
+    """
+    lengths = [
+        load_ogawa2017_fig4a_curve(p).length_at(30.0) for p in OGAWA_2017_FIG4A_AVAILABLE_PRESSURES_MPA
+    ]
+    assert lengths == sorted(lengths, reverse=True)
+
+
+def test_digitized_0_2mpa_curve_matches_papers_independently_stated_contraction_ratios():
+    """The strongest available cross-check: Ogawa's own Figure 6 / Section
+    2.4 text states contraction ratios (relative to the 500mm max elongation,
+    spec 2.2) at 0.2 MPa independently of Figure 4(a)'s graph. If the digitized
+    curve is accurate, converting it to a contraction ratio should reproduce
+    those numbers within a few percentage points -- not exactly, since one
+    came off a graph and the other is the paper's own rounded text, but close.
+    """
+    curve = load_ogawa2017_fig4a_curve(0.2)
+    paper_stated_pct = {0: 36, 10: 29, 20: 23}
+    for force_n, expected_pct in paper_stated_pct.items():
+        f = max(force_n, curve.force_n.min())  # curve may not start exactly at 0
+        length = curve.length_at(f)
+        implied_pct = (OGAWA_2017_MAX_ELONGATION_MM - length) / OGAWA_2017_MAX_ELONGATION_MM * 100
+        assert implied_pct == pytest.approx(expected_pct, abs=3.0)
+
+
+def test_length_at_raises_outside_digitized_force_range():
+    curve = load_ogawa2017_fig4a_curve(0.05)
+    with pytest.raises(ValueError, match="outside the digitized range"):
+        curve.length_at(curve.force_n.max() + 10.0)
+
+
+def test_load_ogawa2017_fig4a_curve_rejects_untested_pressure():
+    with pytest.raises(ValueError, match="not one of the levels"):
+        load_ogawa2017_fig4a_curve(0.4)

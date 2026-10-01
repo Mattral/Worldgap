@@ -16,7 +16,32 @@ import numpy as np
 @dataclass
 class MMDResult:
     mmd_squared: float
+    """The UNBIASED MMD^2 estimate, which **can legitimately be negative**.
+
+    This looks like a bug and is not. The unbiased estimator (below: the
+    kernel-matrix diagonals are excluded from the within-domain sums) is
+    unbiased for the true MMD^2, and an unbiased estimator of a non-negative
+    quantity must take negative values whenever the true value is near zero --
+    otherwise it would be biased upward. See Gretton et al. (2012), "A Kernel
+    Two-Sample Test", JMLR 13.
+
+    Interpretation: a negative value means "no detectable difference between
+    these two domains at this sample size", not "a negative distance". The
+    magnitude of a negative value is sampling noise and carries no meaning, so
+    do not rank conditions by it in that regime.
+
+    The biased (V-statistic) estimator is always non-negative but overstates
+    small gaps, which is the worse failure for this tool's purpose: a
+    domain-gap number that can never say "I see nothing" is not much use.
+    """
     bandwidth: float
+
+    @property
+    def below_noise_floor(self) -> bool:
+        """True when the estimate is negative, i.e. indistinguishable from
+        no difference at this sample size.
+        """
+        return self.mmd_squared < 0.0
 
 
 def _median_heuristic_bandwidth(x: np.ndarray, y: np.ndarray) -> float:

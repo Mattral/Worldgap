@@ -4,13 +4,136 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — real-data paths, V1 and V2
+
+- **`docs/temporal_provenance.md` + `Rollout.metadata["temporal_provenance"]`**
+  — resolves the static-image-vs-trajectory design gap. Every rollout now
+  records where its *time axis* came from (`video`, `simulated`,
+  `quasi_static_sweep`, `static_pose`, `synthetic_from_static`), separately
+  from where its values came from. `Rollout` rejects a multi-frame
+  `static_pose`; `GapAnalyzer.fit()` raises when every rollout declares a
+  non-temporal axis and warns when none declare anything.
+- **`data/loaders/video.py`** — V1's real data source. Decodes a video file,
+  runs the landmarker over its frames in order, and produces a rollout with a
+  real time axis and the file's own frame rate (refusing to assume 30 fps).
+  Plus `landmark_quality_ground_truth()`, which computes spec 8.1's
+  independent degradation signals from MediaPipe's own output: hand dropout
+  rate, longest dropout *run* in seconds (reported separately from the rate,
+  since they are different control problems), and mean pose visibility.
+- **`Rollout.split_into_windows()`** — cuts one long recording into several
+  rollouts so the divergence metrics have an adequate `n`. Each window carries
+  `windows_are_not_independent_samples=True`, because they share a subject,
+  session and camera and the resulting confidence flag is therefore optimistic.
+- **`data/loaders/pgm_sim.py`** — the V2 simulated actuator baseline (resolves
+  the open "which simulator" question). Ideal McKibben braid model
+  parameterized from Ogawa's own reported geometry, with the derived braid
+  angle flagged as derived. Deliberately not fitted to the reference curves
+  and deliberately not MuJoCo; reasons documented in the module.
+- **`scripts/run_v1_real_data.py`** — end-to-end V1 on real recordings:
+  extraction, rollout stores, pre-registration written to disk *before* any
+  score is computed, gap scores, report, validation. Smoke-tested end to end
+  against real video files with a faked landmarker
+  (`tests/test_v1_script_smoke.py`).
+- **`scripts/run_v2_actuation.py`** — end-to-end V2, needing no downloads:
+  physical residuals in mm against each curve's noise floor, latent gap
+  scores, saturation reporting, and an internal-consistency rank correlation
+  explicitly labelled as *not* spec 8.1 validation.
+- **`scripts/check_mediapipe_setup.py`** — preflight that constructs a real
+  `HolisticLandmarker` and runs it, so setup problems surface before a capture
+  session rather than during one.
+- `docs/v1_real_data_runbook.md`, `docs/v2_actuation_runbook.md`.
+- `.gitattributes` (`* text=auto eol=lf`) to stop CRLF/LF churn showing
+  untouched files as modified on Windows.
+
+### Fixed
+
+- **Reproducibility (spec 12.18).** `GapAnalyzer.__init__` now seeds before
+  constructing the model. Previously `torch.manual_seed()` ran only inside
+  `fit()`, by which point every encoder weight had already been initialized
+  from ambient global RNG state — so the same config produced different gap
+  scores on every run. Found by running the V2 script twice.
+  `tests/test_reproducibility.py` guards it.
+- **Spec 6.3 deviation: per-frame prediction.** The predictor took the pooled
+  context, produced one vector, and broadcast it across the whole future
+  window — structurally unable to represent how a trajectory evolves over the
+  horizon. It now uses learned mask tokens per future offset, as 6.3 specified
+  all along, and those tokens are in the optimizer's parameter list.
+  `tests/test_world_model_predictor.py` guards against the broadcast
+  regression. **This changes the model's `state_dict`: 0.1.0 checkpoints will
+  not load.**
+- **`mediapipe>=1.0`** in the `perception` extra, up from `>=0.10`.
+  `vision.HolisticLandmarker` — the entry point every V1 loader is written
+  against — does not exist in the 0.10.x wheels, which export only
+  `PoseLandmarker` and `HandLandmarker` and no longer ship `mp.solutions`
+  either. The old floor resolved to a version where a real V1 run fails with
+  `AttributeError`.
+- **`hagrid.extract_rollout_from_frames()` now raises** instead of silently
+  assembling unrelated stills into one trajectory whose time axis is filename
+  order. `list_hagrid_sequences()` is deprecated in favour of
+  `list_hagrid_images()` (it never returned sequences), and
+  `extract_static_pose_rollouts()` provides the honest `T=1` path.
+- `MMDResult.mmd_squared` documented as the *unbiased* estimator, which can
+  legitimately be negative when the true value is near zero; `GapResult` now
+  warns when it is, saying what it means and that its magnitude must not be
+  used to rank conditions. A test asserting `mmd_squared >= 0` encoded the
+  false property and was corrected.
+- Documented that `summary_head` sits outside the JEPA loss and is therefore a
+  fixed random projection, not a learned one (spec 6.3 implementation note).
+- Spec cross-references: `cli.py` cited "Section 16" for a risks item that is
+  in Section 14; `report.py`/CHANGELOG cited "spec 210" (a line number) for a
+  requirement in Section 7.2.
+- `configs/v2_default.yaml`: `state_dim` 2 → 3, matching the real actuation
+  state layout `[pressure_mpa, force_n, length_mm]`; `summary_dim` 32 → 8,
+  because only 7 pressure levels exist in the literature.
+
+### Changed — corrections to earlier claims
+
+- **The two papers do not describe two different physical prototypes.** Thakur
+  et al. (2018) §II.A describes the actuator as the one "we previously
+  developed" citing Ogawa, reuses Ogawa's elongation figure, and motivates its
+  own experiment because the stretched-length behaviour "is not measured in
+  [14]". The papers' measurements are still kept separate — because they
+  measure different quantities, not different hardware. Corrected in
+  `docs/pgm_reference_data.md`, `pgm_actuator.py`, the spec and the tests.
+- The contraction-ratio reference length (500 mm) is now labelled an
+  **inference** that reproduces Figure 6's published numbers, not a formula
+  either paper writes down — the literal reading of "natural length" (250 mm
+  or 300 mm) does not reproduce them.
+- `digitization_noise_floor_mm` is now labelled a **heuristic proxy**, not a
+  confidence interval.
+- Ogawa §4's scale caveat is now carried in code
+  (`OGAWA_2017_SCALE_CAVEAT`): the characterized muscle is 300 mm and the
+  authors state it is unsuitable for hand or wrist assistance.
+
 ### Added
+- `pgm_actuator.py`: `load_ogawa2017_fig4a_curve()` — real digitized
+  `Length(Force)` data at each of the 7 pressure levels Ogawa et al. (2017)
+  Figure 4(a) tested, bundled as package data (`data/reference_data/
+  ogawa2017_fig4a/*.csv`, ships in the wheel — verified against an actual
+  clean-venv install, not just the source checkout). Isotonic regression
+  (`scipy.optimize.isotonic_regression`, bumping the scipy floor to >=1.12)
+  enforces the known physical constraint that elongation is non-decreasing
+  with load, with the correction magnitude recorded per curve as a
+  documented digitization noise floor (spec 12.14) — ranges from 0.06mm on
+  the cleanest curve to 11.39mm on the noisiest. Independently
+  cross-validated against Figure 6's separately-stated contraction ratios at
+  0.2 MPa (35.6%/29.9%/24.4% digitized vs. 36%/29%/23% paper-stated — within
+  0.4-1.4 percentage points, without having used Figure 6's numbers anywhere
+  in the digitization). 6 new tests.
+- **Correction**: an earlier version of `docs/pgm_reference_data.md` assumed
+  Ogawa Figure 4(a) would show a pressure-ramp hysteresis loop (matching
+  `fit_hysteresis_curve()`'s loading/unloading model). Having now actually
+  digitized it, each pressure level is a single curve, not two resolvable
+  branches — what's real and integrated is a `Length(Force, Pressure)`
+  reference surface, not hysteresis-loop ground truth. Documented clearly
+  in `docs/pgm_reference_data.md` and `ROADMAP.md` rather than silently
+  reusing the old (incorrect) framing.
 - `docs/pgm_reference_data.md`: real PGM reference data obtained directly
   from Ogawa et al. (2017) and Thakur et al. (2018) — resolves the spec
-  Section 14 / ROADMAP Phase 0 & 6 "Ogawa et al. access" item. Documents that
-  the two papers describe two *different* physical PGM prototypes (250mm vs
-  300mm natural length, measuring different physical quantities) and should
-  not be merged into one dataset.
+  Section 14 / ROADMAP Phase 0 & 6 "Ogawa et al. access" item. Documents why
+  the two papers' measurements are not merged into one dataset (they measure
+  different quantities under different held-constant conditions) and how the
+  two papers report the prototype's dimensions inconsistently.
 - `pgm_actuator.py`: added `OGAWA_2017_PROTOTYPE`/`THAKUR_2018_PROTOTYPE`
   (real dimensions + citations), `OGAWA_2017_PGM_VS_PM10RF_AT_0_2MPA` (real
   contraction/elongation comparison table transcribed from the paper's own
@@ -42,11 +165,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   fixture-image tests above).
 
 ### Changed
-- `docs/TECHNICAL_SPEC.md`/`ROADMAP.md`: removed personal-correspondence
-  framing ("the Kurita proposal, internal document, shared in this
-  conversation") in favor of citing the now-public Ogawa/Thakur papers
-  directly — same technical grounding, no implication of private
-  correspondence.
+- `docs/TECHNICAL_SPEC.md`/`ROADMAP.md`: replaced references to an unpublished
+  source document with citations to the published Ogawa et al. (2017) and
+  Thakur et al. (2018) papers — same technical grounding, fully citable.
 
 ---
 
@@ -91,7 +212,7 @@ First published release (PyPI).
   `worldgap train --config`.
 - `report.py`: HTML/Markdown report generation (spec 9.3) — condition table,
   Fréchet/MMD trend plot, low-confidence warning surfacing, and a Fréchet/MMD
-  rank-disagreement diagnostic (spec 210).
+  rank-disagreement diagnostic (spec 7.2).
 - CLI (`worldgap train/analyze/validate`) wired end-to-end against local
   rollout stores (spec 9.2). Documented decision: each of
   `--data-dir`/`--source`/`--target` is a self-contained rollout store

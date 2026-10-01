@@ -73,7 +73,19 @@ def test_gap_analyzer_runs_identically_across_modalities(modality, state_dim):
 
     assert isinstance(result, GapResult)
     assert result.frechet.latent_dim == config.world_model.summary_dim
-    assert result.mmd.mmd_squared >= 0.0 - 1e-6
+
+    # NOT `>= 0`. An earlier version of this line asserted that, which encodes a
+    # false property: `mmd_squared` is the *unbiased* estimator (mmd.py excludes
+    # the kernel-matrix diagonal), and the unbiased MMD^2 estimator is
+    # well known to go negative when the true MMD^2 is small relative to
+    # sampling noise (Gretton et al. 2012). Source and target here are drawn
+    # from the same distribution with different seeds, so the true value is
+    # ~zero and a negative estimate is the expected outcome, not a bug. The
+    # assertion passed only by luck of initialization and broke the moment
+    # seeding was fixed. What must actually hold is that it is finite and small.
+    assert np.isfinite(result.mmd.mmd_squared)
+    assert abs(result.mmd.mmd_squared) < 1.0
+    assert result.mmd.bandwidth > 0
 
 
 def test_compute_gap_before_fit_raises():

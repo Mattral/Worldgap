@@ -92,9 +92,8 @@ def test_add_upserts_rather_than_duplicates(tmp_path):
 
 
 def test_load_rollout_missing_id_raises_keyerror(tmp_path):
-    with RolloutIndex(tmp_path / "index.db") as index:
-        with pytest.raises(KeyError):
-            index.load_rollout("does_not_exist", tmp_path / "processed")
+    with RolloutIndex(tmp_path / "index.db") as index, pytest.raises(KeyError):
+        index.load_rollout("does_not_exist", tmp_path / "processed")
 
 
 def test_index_persists_across_reopen(tmp_path):

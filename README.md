@@ -28,11 +28,39 @@ One core library. Two current use cases, distinguished only by which encoder plu
 
 ## Status
 
-Core library, CLI, report generation, and demo notebook are implemented and tested
-end-to-end against synthetic/local data. Real-data phases (HaGRID/EgoHands MediaPipe
-extraction, the real Ogawa et al. PGM curve) are blocked on external access this
-environment doesn't have. See [`ROADMAP.md`](ROADMAP.md) for the exact phase-by-phase
-status, and [`CHANGELOG.md`](CHANGELOG.md) for what's landed so far.
+Be suspicious of libraries that don't say this plainly, so: **nothing here has been
+validated against real measured ground truth yet.** Every gap number this repo has
+produced so far came from synthetic data or from data digitized off a published
+figure. The word "validated" is reserved for when spec 8.1's independent ground
+truth actually exists.
+
+What *is* real:
+
+- Core library, CLI, report generation and demo notebook — implemented and tested
+  end-to-end (`pytest`: see the badge/CI), on synthetic and local data.
+- **Bundled real reference data** — Ogawa et al. (2017) Figure 4(a) digitized into
+  `Length(Force)` curves at all 7 tested supply pressures, shipped in the wheel and
+  loaded via `load_ogawa2017_fig4a_curve()`, with the digitization's own noise floor
+  recorded per curve and an independent cross-check against the paper's separately
+  stated Figure 6 numbers. Plus Thakur et al. (2018)'s fitted force–pressure
+  equations, which refuse to extrapolate outside the 50–300 kPa the paper measured.
+- A **simulated PGM actuator baseline** (`pgm_sim.py`) and a V2 end-to-end path that
+  compares it against those digitized curves — see `docs/v2_actuation_runbook.md`.
+
+What is *not* done: a real V1 run (HaGRID/EgoHands frames through MediaPipe on a
+machine with dataset + model-bundle access — `docs/v1_real_data_runbook.md` and
+`scripts/run_v1_real_data.py` are written and waiting for that machine), and any
+validation against real MediaPipe confidence/dropout.
+
+A note on what the bundled PGM data covers: Ogawa et al. (2017) Section 4 states the
+characterized actuator is a 300 mm walking-assist-scale muscle and explicitly says
+that length is *not* suitable for hand or wrist assistance. Applying this reference
+data to a hand-scale device is an extrapolation across a scale the source paper says
+does not carry over — `worldgap` says so rather than letting the number travel
+silently.
+
+See [`ROADMAP.md`](ROADMAP.md) for phase-by-phase status and
+[`CHANGELOG.md`](CHANGELOG.md) for what's landed.
 
 ## Install
 

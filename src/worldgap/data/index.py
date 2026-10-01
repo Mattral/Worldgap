@@ -48,7 +48,7 @@ class RolloutIndex:
     def close(self) -> None:
         self._conn.close()
 
-    def __enter__(self) -> "RolloutIndex":
+    def __enter__(self) -> RolloutIndex:  # noqa: PYI034 -- typing.Self needs Python 3.11+, this project supports 3.10
         return self
 
     def __exit__(self, *exc) -> None:

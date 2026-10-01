@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 # Downloads HaGRID and EgoHands into data/raw/.
 #
-# NOT run or verified in the scaffolding session that produced this repo: that
-# sandbox's network allow-list doesn't reach Kaggle or the EgoHands host. Run
-# this on your own machine (or in Claude Code) where you have normal internet
-# access, and open an issue/note in CHANGELOG.md if the URLs below have moved.
+# READ FIRST -- you probably do not need this for a V1 run.
+#
+# HaGRID is an IMAGE dataset and cannot supply V1's trajectories; see
+# docs/temporal_provenance.md. V1's primary real source is video, including
+# your own webcam recordings, which need no download at all --
+# docs/v1_real_data_runbook.md walks through that in under an hour.
+#
+# This script remains useful for: EgoHands (video-derived frames, a genuine
+# second source), and HaGRID for the frame-level landmark distribution
+# comparison that `extract_static_pose_rollouts()` supports.
+#
+# NOT run or verified in the sandbox that produced this repo: its network
+# allow-list doesn't reach Kaggle or the EgoHands host. Run this on your own
+# machine, and note it in CHANGELOG.md if the URLs below have moved.
 #
 # Per spec 12.16: raw dataset files MUST NOT be committed to this repo. This
 # script is the only sanctioned way to populate data/raw/ — check dataset
@@ -41,6 +51,7 @@ echo "    http://vision.soic.indiana.edu/egohands_files/egohands_data.zip"
 echo "  unzip \"$DATA_ROOT/egohands/egohands_data.zip\" -d \"$DATA_ROOT/egohands\""
 echo ""
 
-echo "Once both are in place, run the Phase 0 data audit (ROADMAP.md) before"
-echo "building anything on top of them -- confirm canonical-gesture sample"
-echo "counts are sufficient (see hagrid.py CANONICAL_GESTURES)."
+echo "Reminder: HaGRID stills cannot be assembled into trajectories --"
+echo "hagrid.extract_rollout_from_frames() raises on purpose. Use"
+echo "extract_static_pose_rollouts() for a frame-level comparison, or record"
+echo "video (docs/v1_real_data_runbook.md) for the real V1 run."

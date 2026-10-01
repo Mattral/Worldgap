@@ -1,14 +1,24 @@
 """EgoHands loader, per TECHNICAL_SPEC.md Section 5.4 (secondary source for
 occlusion-heavy conditions).
 
-Same status as hagrid.py: the extraction logic itself is real and shared via
-`mediapipe_extract.py` (tested in tests/test_mediapipe_extract.py), but NOT
-run against real EgoHands frames in this scaffolding session (no network
-access to the dataset host, or to `storage.googleapis.com` for MediaPipe's
-model bundle, from this sandbox). Structure mirrors hagrid.py deliberately —
-both loaders MUST produce Rollout objects with identical feature-vector
-layout (PERCEPTION_FEATURE_LAYOUT), since the whole point is that source and
-target domains are comparable in the same latent space.
+Unlike HaGRID, EgoHands is **video-derived**, so consecutive frames from one
+clip really are consecutive moments and `extract_rollout_from_frames()` is the
+right operation here — which is why this module keeps it while `hagrid.py`
+now raises (see docs/temporal_provenance.md). Callers MUST pass frames from a
+single clip, in order; frames pooled across clips are the same
+pseudo-trajectory mistake under a different name.
+
+The extraction logic itself is real and shared via `mediapipe_extract.py`
+(tested in tests/test_mediapipe_extract.py), but has NOT been run against real
+EgoHands frames — that needs the dataset and a MediaPipe `.task` bundle, both
+outside this sandbox's network allow-list. Note that
+`worldgap.data.loaders.video` is usually the better path even for EgoHands: it
+decodes the source video directly and records the file's real frame rate
+rather than relying on a caller-supplied default.
+
+Feature-vector layout (PERCEPTION_FEATURE_LAYOUT) is identical to every other
+perception loader's, since source and target domains only mean anything if
+they are comparable in the same latent space.
 """
 
 from __future__ import annotations

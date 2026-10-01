@@ -6,20 +6,28 @@ Ground truth for this package's design: docs/TECHNICAL_SPEC.md.
 from .analyzer import GapAnalyzer, GapResult
 from .config import EncoderConfig, GapConfig, TrainingConfig, WorldModelConfig
 from .data.index import RolloutIndex
-from .data.rollout import Rollout
+from .data.rollout import (
+    TEMPORAL_PROVENANCE_KEY,
+    TEMPORAL_PROVENANCE_MEANING,
+    Rollout,
+    split_into_windows,
+)
 from .report import ReportEntry, generate_report
 
 __all__ = [
-    "GapAnalyzer",
-    "GapResult",
-    "GapConfig",
+    "TEMPORAL_PROVENANCE_KEY",
+    "TEMPORAL_PROVENANCE_MEANING",
     "EncoderConfig",
-    "WorldModelConfig",
-    "TrainingConfig",
+    "GapAnalyzer",
+    "GapConfig",
+    "GapResult",
+    "ReportEntry",
     "Rollout",
     "RolloutIndex",
-    "ReportEntry",
+    "TrainingConfig",
+    "WorldModelConfig",
     "generate_report",
+    "split_into_windows",
 ]
 
 __version__ = "0.1.0"

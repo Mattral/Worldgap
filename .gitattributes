@@ -1,0 +1,16 @@
+# Normalize line endings so a Windows checkout doesn't show every untouched
+# file as "modified" in `git status`, and so diffs stay readable across the
+# Windows/Linux boundary this project is developed across.
+* text=auto eol=lf
+
+# Binary / generated artifacts: never touch.
+*.png binary
+*.jpg binary
+*.pdf binary
+*.npz binary
+*.pt binary
+*.db binary
+
+# Notebooks: treat as text (they are JSON) but don't let merge drivers try to
+# be clever about them -- resolve conflicts by picking a side and re-running.
+*.ipynb text

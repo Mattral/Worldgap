@@ -17,7 +17,7 @@ if V2 validation shows the encoder is insensitive to injected occlusion.
 from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from ...config import EncoderConfig
 from .common import frame_presence_from_mask

@@ -6,7 +6,7 @@ Section 6.1. A Transformer encoder — appropriate at this scale since inputs ar
 from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from ...config import EncoderConfig
 from .common import SinusoidalPositionalEncoding, frame_presence_from_mask

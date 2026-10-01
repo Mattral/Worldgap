@@ -24,9 +24,15 @@ def test_from_yaml_loads_real_v1_default_config():
 def test_from_yaml_loads_real_v2_default_config():
     config = GapConfig.from_yaml(_CONFIGS_DIR / "v2_default.yaml", modality="actuation")
     assert config.modality == "actuation"
-    assert config.state_dim == 2
-    assert config.world_model.summary_dim == 32
-    assert config.encoder.d_model == 64
+    # 3 = ACTUATION_STATE_LAYOUT, [pressure_mpa, force_n, length_mm]. It was 2
+    # ([commanded_pressure, joint_angle]) when no real actuator data existed;
+    # the real characterization that now ships with the package needs all three
+    # channels and measures no joint angle anywhere.
+    assert config.state_dim == 3
+    # 8, not 32: only 7 pressure levels were ever published, so spec 7.3's
+    # n >= 5 * summary_dim cannot be met at a larger summary dimension.
+    assert config.world_model.summary_dim == 8
+    assert config.encoder.d_model == 32
 
 
 def test_from_yaml_rejects_modality_in_file(tmp_path):

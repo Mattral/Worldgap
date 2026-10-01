@@ -17,8 +17,8 @@ import numpy as np
 import pytest
 
 from worldgap.data.loaders.mediapipe_extract import (
-    holistic_result_to_feature_vector,
     extract_rollout_from_frames,
+    holistic_result_to_feature_vector,
 )
 from worldgap.data.rollout import PERCEPTION_FEATURE_LAYOUT, PERCEPTION_STATE_DIM
 

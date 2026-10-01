@@ -220,7 +220,7 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     if s.ci_low <= 0.0 <= s.ci_high:
         print(
             "[worldgap validate] NOTE: the confidence interval includes zero -- this is a "
-            "legitimate, reportable outcome per spec Section 16 ('validation correlation may "
+            "legitimate, reportable outcome per spec Section 14 ('validation correlation may "
             "simply be weak'), not a failure to hide.",
             file=sys.stderr,
         )

@@ -29,7 +29,7 @@ class EncoderConfig(BaseModel):
     dropout: float = 0.1
 
     @model_validator(mode="after")
-    def _check_heads_divide_dmodel(self) -> "EncoderConfig":
+    def _check_heads_divide_dmodel(self) -> EncoderConfig:
         if self.d_model % self.n_heads != 0:
             raise ValueError(
                 f"d_model ({self.d_model}) must be divisible by n_heads ({self.n_heads})"
@@ -74,7 +74,7 @@ class GapConfig(BaseModel):
     training: TrainingConfig = Field(default_factory=TrainingConfig)
 
     @model_validator(mode="after")
-    def _check_actuation_dim(self) -> "GapConfig":
+    def _check_actuation_dim(self) -> GapConfig:
         if self.modality == "actuation" and self.state_dim == 258:
             raise ValueError(
                 "state_dim=258 is the perception default; set an explicit state_dim "
@@ -83,7 +83,7 @@ class GapConfig(BaseModel):
         return self
 
     @classmethod
-    def from_yaml(cls, path: str | Path, modality: Modality) -> "GapConfig":
+    def from_yaml(cls, path: str | Path, modality: Modality) -> GapConfig:
         """Loads a config file like configs/v1_default.yaml, per spec 9.2's
         `worldgap train --config configs/v1_default.yaml`. `modality` MUST come
         from the CLI's `--modality` flag, not the file, per configs/v1_default.yaml's

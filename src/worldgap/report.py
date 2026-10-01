@@ -21,13 +21,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib
+import numpy as np
 
 matplotlib.use("Agg")  # headless -- this module never opens a display window
 
-import matplotlib.pyplot as plt  # noqa: E402
-from scipy.stats import spearmanr  # noqa: E402
+import matplotlib.pyplot as plt
+from scipy.stats import spearmanr
 
-from .analyzer import GapResult  # noqa: E402
+from .analyzer import GapResult
 
 _MIN_CONDITIONS_FOR_DISAGREEMENT_CHECK = 3
 
@@ -63,7 +64,7 @@ def _condition_table_rows(entries: list[ReportEntry]) -> list[dict]:
 
 
 def _disagreement_note(entries: list[ReportEntry]) -> str | None:
-    """Per spec 210: flags Frechet/MMD rank disagreement across conditions as
+    """Per spec 7.2: flags Frechet/MMD rank disagreement across conditions as
     a diagnostic signal, not something to silently average past. Only
     meaningful with enough points to rank; returns None below that threshold
     rather than reporting a spurious correlation from 1-2 points.
@@ -73,7 +74,7 @@ def _disagreement_note(entries: list[ReportEntry]) -> str | None:
     frechet_vals = [e.result.frechet.distance for e in entries]
     mmd_vals = [e.result.mmd.mmd_squared for e in entries]
     rho, _ = spearmanr(frechet_vals, mmd_vals)
-    if rho != rho:  # NaN check without importing numpy just for this
+    if np.isnan(rho):
         return "Frechet/MMD rank correlation is undefined (one metric is constant across conditions)."
     if rho < 0.5:
         return (
@@ -204,8 +205,10 @@ img {{ max-width: 100%; }}
         parts = [f"# {title}", ""]
         if any_low_confidence:
             parts += [
-                "> **Low sample-size confidence** flagged on at least one condition -- "
-                "see spec Section 7.3 (n >= 5 x latent_dim per domain is the rule of thumb).",
+                (
+                    "> **Low sample-size confidence** flagged on at least one condition -- "
+                    "see spec Section 7.3 (n >= 5 x latent_dim per domain is the rule of thumb)."
+                ),
                 "",
             ]
         if disagreement:
