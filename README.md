@@ -71,6 +71,9 @@ pip install -e ".[actuation]"    # + MuJoCo, for V2 data loading/simulation
 pip install -e ".[dev]"          # test tooling
 ```
 
+On Linux, `perception` also needs the system libraries `libEGL.so.1` and
+`libGLESv2.so.2` (Debian/Ubuntu: `sudo apt-get install libegl1 libgles2`).
+
 ## Quickstart
 
 The library API works with any `Rollout` objects you construct yourself — the note

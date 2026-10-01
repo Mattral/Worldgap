@@ -4,6 +4,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-01
+
+> **Upgrading from 0.1.0: saved checkpoints will not load.** The world-model
+> predictor now has learned per-offset mask tokens (`future_mask_tokens`, see
+> *Fixed* below), so the model's `state_dict` changed shape.
+> `GapAnalyzer.load_checkpoint()` on a 0.1.0 checkpoint fails with a
+> `RuntimeError` (missing key `future_mask_tokens`; size mismatch for
+> `predictor.0.weight`). Re-run `worldgap train` to produce a new
+> checkpoint. Gap scores from 0.1.0 are also not comparable with 0.2.0 ones:
+> both the predictor and the seeding order changed.
+
 ### Added — real-data paths, V1 and V2
 
 - **`docs/temporal_provenance.md` + `Rollout.metadata["temporal_provenance"]`**
@@ -85,11 +96,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `configs/v2_default.yaml`: `state_dim` 2 → 3, matching the real actuation
   state layout `[pressure_mpa, force_n, length_mm]`; `summary_dim` 32 → 8,
   because only 7 pressure levels exist in the literature.
-- `scripts/check_mediapipe_setup.py`, `run_v1_real_data.py` and
-  `run_v2_actuation.py` are now committed as executable (`100755`). They carry
-  `#!/usr/bin/env python3` shebangs but were stored as `100644` because git on
-  Windows does not record the executable bit, so `ruff check .` reported three
-  EXE001 errors on any Unix checkout. CI was unaffected (it lints `src tests`).
+- `scripts/check_mediapipe_setup.py`, `run_v1_real_data.py`,
+  `run_v2_actuation.py` and `download_datasets.sh` are now committed as
+  executable (`100755`). They carry shebangs but were stored as `100644`
+  because git on Windows does not record the executable bit, so `ruff check .`
+  reported three EXE001 errors on any Unix checkout (ruff only checks the
+  Python files) and `./scripts/download_datasets.sh` was permission-denied.
+  CI was unaffected (it lints `src tests`).
+- The version string lives in both `pyproject.toml` and
+  `src/worldgap/__init__.py`; `tests/test_version.py` now fails if they drift.
 
 ### Changed — corrections to earlier claims
 
@@ -173,6 +188,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `docs/TECHNICAL_SPEC.md`/`ROADMAP.md`: replaced references to an unpublished
   source document with citations to the published Ogawa et al. (2017) and
   Thakur et al. (2018) papers — same technical grounding, fully citable.
+- CI installs `.[dev,perception]` instead of `.[dev]`. Before this, the six
+  tests that need `mediapipe`/`cv2` — including all of
+  `tests/test_v1_script_smoke.py` — were skipped on every CI run, and the
+  `perception` extra had never been installed by CI on any Python version.
+  Doing so surfaced a real requirement: on Linux, mediapipe's
+  `libmediapipe.so` links `libEGL.so.1` and `libGLESv2.so.2`, so CI now
+  installs `libegl1 libgles2`, and the README and V1 runbook say so. The
+  matrix also runs with `fail-fast: false`, so one Python version failing no
+  longer cancels the others.
 
 ---
 
