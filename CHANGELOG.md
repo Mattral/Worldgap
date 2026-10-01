@@ -188,6 +188,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `docs/TECHNICAL_SPEC.md`/`ROADMAP.md`: replaced references to an unpublished
   source document with citations to the published Ogawa et al. (2017) and
   Thakur et al. (2018) papers — same technical grounding, fully citable.
+- CI installs `.[dev,perception]` instead of `.[dev]`. Before this, the six
+  tests that need `mediapipe`/`cv2` — including all of
+  `tests/test_v1_script_smoke.py` — were skipped on every CI run, and the
+  `perception` extra had never been installed by CI on any Python version.
 
 ---
 
