@@ -166,6 +166,9 @@ worldgap analyze --source ./v1_run/stores/clean \
 
 ## Step 4 — read the output honestly
 
+*The first real run's results, read against these four checks, are in
+[`v1_first_run_results.md`](v1_first_run_results.md).*
+
 Four things to check before believing any number.
 
 **1. Did the collapse safeguard fire?** The script stops if it did, and it is
