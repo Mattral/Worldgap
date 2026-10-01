@@ -85,6 +85,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `configs/v2_default.yaml`: `state_dim` 2 → 3, matching the real actuation
   state layout `[pressure_mpa, force_n, length_mm]`; `summary_dim` 32 → 8,
   because only 7 pressure levels exist in the literature.
+- `scripts/check_mediapipe_setup.py`, `run_v1_real_data.py` and
+  `run_v2_actuation.py` are now committed as executable (`100755`). They carry
+  `#!/usr/bin/env python3` shebangs but were stored as `100644` because git on
+  Windows does not record the executable bit, so `ruff check .` reported three
+  EXE001 errors on any Unix checkout. CI was unaffected (it lints `src tests`).
 
 ### Changed — corrections to earlier claims
 
