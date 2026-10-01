@@ -3,9 +3,10 @@
 Resolves the spec Section 14 / ROADMAP Phase 0 & 6 "Ogawa et al. access" item.
 Both papers below were obtained directly and are the source of every number
 on this page. Nothing here was read off a figure by eye and presented as
-precise — anything that would require that (the full continuous
-pressure-elongation curves) is explicitly called out as **not yet done** at
-the bottom, rather than approximated and quietly presented as solid.
+precise. The one digitized figure, Fig. 4(a), carries its own independent
+cross-check and recorded noise floor (below); the figures not yet digitized
+are explicitly called out as **not yet done** at the bottom, rather than
+approximated and quietly presented as solid.
 
 ## Citations
 

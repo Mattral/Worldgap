@@ -50,7 +50,7 @@ This project builds a **reusable, embodiment-agnostic tool that quantifies the g
 - Packaged library + CLI + demo notebook.
 
 ### In scope (V2)
-- Actuator-response world model using MuJoCo simulation vs. digitized published PGM characterization data (Ogawa et al., 2017) as the "real" reference.
+- Actuator-response world model using a simulated actuator vs. digitized published PGM characterization data (Ogawa et al., 2017) as the "real" reference. (Originally specified as MuJoCo; implemented as an ideal McKibben model — see the 5.5 implementation note.)
 - Same divergence + validation code reused unmodified from V1.
 
 ### Explicitly out of scope for V1/V2
@@ -171,6 +171,7 @@ data/
 
 - **Reference curve**: Ogawa et al. (2017) PGM pressure-response characterization, extracted via WebPlotDigitizer from published figures (raw data is not expected to be available). Digitization MUST record an estimated reading-error bound (e.g., ± pixel-to-unit conversion uncertainty) — this becomes a documented noise floor, not an assumed-exact ground truth.
 - **Simulated actuator**: MuJoCo custom actuator (general actuator with custom gain/bias) OR a standalone hysteresis model (Bouc-Wen or Hammerstein-Wiener) fit via `scipy.optimize.curve_fit`, chosen based on which better matches the hysteresis loop shape in the digitized data (MUST check: PGMs are McKibben-type pneumatic muscles and exhibit hysteresis — a naive monotonic fit is a known failure mode, see 12.13).
+  *Implementation note (documented deviation, not a silent one):* neither option above is used. The simulated actuator is an ideal McKibben braid model, `F(ε,P) = (πD₀²P/4)(3(1−ε)²/tan²θ₀ − 1/sin²θ₀)` (Chou & Hannaford 1996), parameterized from Ogawa et al.'s reported geometry and deliberately **not** fitted to the reference curves — fitting would measure curve-fitting quality, not the sim-to-real gap. MuJoCo was rejected because it has no native McKibben actuator: using it would mean writing this same model with an engine wrapped around it. The digitized Fig. 4(a) data is `Length(Force)` at fixed pressure, not a pressure-ramp hysteresis loop, so the 12.13 hysteresis fit does not apply to it. The package therefore has no MuJoCo dependency (the 0.1.0 `actuation` extra was removed). See `src/worldgap/data/loaders/pgm_sim.py` and `docs/v2_actuation_runbook.md`.
 
 ---
 
@@ -344,10 +345,10 @@ worldgap/
 
 | Layer | Choice | Note |
 |---|---|---|
-| Language | Python 3.11 | |
+| Language | Python 3.11 | as built: `requires-python >=3.10`, CI on 3.10/3.11/3.12 |
 | ML core | PyTorch | pin exact version in `pyproject.toml`; verify current stable at install time |
 | Perception front-end | MediaPipe Tasks API (`HolisticLandmarker`) | confirm exact config parameter names against current docs at implementation time — Google's API surface has moved from legacy `mp.solutions` to the Tasks API; this spec assumes Tasks API |
-| Simulation (V2) | MuJoCo (`pip install mujoco`) | |
+| Simulation (V2) | MuJoCo (`pip install mujoco`) | as built: not used — ideal McKibben model in numpy/scipy, see 5.5 implementation note |
 | Curve fitting | SciPy (`curve_fit`), optionally a small MLP | |
 | Covariance estimation | scikit-learn `LedoitWolf` | |
 | Digitization | WebPlotDigitizer (manual, browser-based) | |

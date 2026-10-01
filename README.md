@@ -1,7 +1,8 @@
 # worldgap
 
 [![PyPI](https://img.shields.io/pypi/v/worldgap.svg)](https://pypi.org/project/worldgap/)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Mattral/worldgap/blob/main/notebooks/demo.ipynb)
+[![CI](https://github.com/Mattral/Worldgap/actions/workflows/ci.yml/badge.svg)](https://github.com/Mattral/Worldgap/actions/workflows/ci.yml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Mattral/Worldgap/blob/main/notebooks/demo.ipynb)
 
 Reusable world-model-based domain-gap quantification — for perception pipelines and
 actuator/mechanism models — before any hardware is touched.
@@ -37,7 +38,9 @@ truth actually exists.
 What *is* real:
 
 - Core library, CLI, report generation and demo notebook — implemented and tested
-  end-to-end (`pytest`: see the badge/CI), on synthetic and local data.
+  end-to-end on synthetic and local data. CI runs the full suite on Python
+  3.10–3.12 with the `perception` extra installed, so the V1 video/MediaPipe path
+  is exercised too (against a faked landmarker, not a real model bundle).
 - **Bundled real reference data** — Ogawa et al. (2017) Figure 4(a) digitized into
   `Length(Force)` curves at all 7 tested supply pressures, shipped in the wheel and
   loaded via `load_ogawa2017_fig4a_curve()`, with the digitization's own noise floor
@@ -47,10 +50,12 @@ What *is* real:
 - A **simulated PGM actuator baseline** (`pgm_sim.py`) and a V2 end-to-end path that
   compares it against those digitized curves — see `docs/v2_actuation_runbook.md`.
 
-What is *not* done: a real V1 run (HaGRID/EgoHands frames through MediaPipe on a
-machine with dataset + model-bundle access — `docs/v1_real_data_runbook.md` and
-`scripts/run_v1_real_data.py` are written and waiting for that machine), and any
-validation against real MediaPipe confidence/dropout.
+What is *not* done: a real V1 run — webcam/video recordings of a gesture routine
+under ≥10 deployment-like conditions, run through MediaPipe.
+`docs/v1_real_data_runbook.md` and `scripts/run_v1_real_data.py` are written and
+tested; what's missing is the recordings. Until then there is no validation
+against real MediaPipe confidence/dropout. (HaGRID is a still-image dataset and
+cannot supply V1's trajectories — see `docs/temporal_provenance.md`.)
 
 A note on what the bundled PGM data covers: Ogawa et al. (2017) Section 4 states the
 characterized actuator is a 300 mm walking-assist-scale muscle and explicitly says
@@ -64,21 +69,34 @@ See [`ROADMAP.md`](ROADMAP.md) for phase-by-phase status and
 
 ## Install
 
+From PyPI:
+
 ```bash
-pip install -e .                 # core: torch + the World Model, works for both modalities
-pip install -e ".[perception]"   # + MediaPipe, for V1 data loading (HaGRID/EgoHands)
-pip install -e ".[actuation]"    # + MuJoCo, for V2 data loading/simulation
-pip install -e ".[dev]"          # test tooling
+pip install worldgap                 # core: torch + the World Model; V1 and V2 analysis, V2 data
+pip install "worldgap[perception]"   # + MediaPipe/OpenCV, to turn video into V1 landmark rollouts
 ```
+
+From a clone (for development, or to run `scripts/`):
+
+```bash
+pip install -e ".[dev]"              # + test tooling
+pip install -e ".[perception,dev]"   # what CI installs
+```
+
+V2 needs nothing beyond the core install: the simulated actuator is an ideal
+McKibben model in numpy/scipy, and the digitized reference data ships in the
+wheel. (0.1.0 had an `actuation` extra pulling in MuJoCo; nothing used it, and
+it was removed.)
 
 On Linux, `perception` also needs the system libraries `libEGL.so.1` and
 `libGLESv2.so.2` (Debian/Ubuntu: `sudo apt-get install libegl1 libgles2`).
 
 ## Quickstart
 
-The library API works with any `Rollout` objects you construct yourself — the note
-below only applies to *producing* rollouts from raw HaGRID/EgoHands data, which still
-needs MediaPipe + real downloads (see ROADMAP Phase 0/1).
+The library API works with any `Rollout` objects you construct yourself. Producing
+perception rollouts from video needs the `perception` extra and MediaPipe's
+`holistic_landmarker.task` model bundle (see `docs/v1_real_data_runbook.md`);
+V2 rollouts come straight from `worldgap.data.loaders.pgm_sim`.
 
 ```python
 from worldgap import GapAnalyzer
@@ -92,8 +110,16 @@ print(result.frechet.distance, result.confidence)
 ```
 
 See [`notebooks/demo.ipynb`](notebooks/demo.ipynb) for a runnable end-to-end example
-(synthetic data, no external dependencies) covering both modalities, report
-generation, and the validation harness.
+(no downloads needed) covering both modalities, report generation, and the
+validation harness — on synthetic data, plus a final part on the bundled digitized
+PGM reference data.
+
+For the two real-data paths, see [`docs/v2_actuation_runbook.md`](docs/v2_actuation_runbook.md)
+(runs today, reproducible) and [`docs/v1_real_data_runbook.md`](docs/v1_real_data_runbook.md)
+(needs recordings).
+
+**Upgrading from 0.1.0:** saved checkpoints will not load (the predictor changed) —
+retrain. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## CLI
 
