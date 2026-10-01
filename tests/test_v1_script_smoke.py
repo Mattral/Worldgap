@@ -33,20 +33,30 @@ def _load_script():
 
 
 class _Landmark:
-    def __init__(self, v: float, visibility: float):
-        self.x = self.y = self.z = v
+    def __init__(self, x: float, y: float, visibility: float):
+        self.x, self.y, self.z = x, y, 0.0
         self.visibility = visibility
 
 
+def _points(n: int, cx: float, cy: float, spread: float, noise: np.ndarray, visibility: float):
+    """n landmarks with real extent (spec 5.2 normalization divides by
+    shoulder width / hand size, so points piled on one spot are degenerate),
+    with independent per-landmark noise: a shift shared by every point is a
+    translation, which normalization correctly removes."""
+    return [
+        _Landmark(cx + spread * np.cos(k) + noise[k, 0], cy + spread * np.sin(1.7 * k) + noise[k, 1], visibility)
+        for k in range(n)
+    ]
+
+
 class _Result:
-    def __init__(self, hands: bool, visibility: float, jitter: float):
-        self.pose_landmarks = [_Landmark(0.5 + jitter, visibility) for _ in range(33)]
-        self.left_hand_landmarks = (
-            [_Landmark(0.4 + jitter, visibility) for _ in range(21)] if hands else []
-        )
-        self.right_hand_landmarks = (
-            [_Landmark(0.6 + jitter, visibility) for _ in range(21)] if hands else []
-        )
+    def __init__(self, hands: bool, visibility: float, rng: np.random.Generator, noise: float):
+        def jitter(n):
+            return rng.normal(0, noise, size=(n, 2))
+
+        self.pose_landmarks = _points(33, 0.5, 0.5, 0.2, jitter(33), visibility)
+        self.left_hand_landmarks = _points(21, 0.4, 0.5, 0.05, jitter(21), visibility) if hands else []
+        self.right_hand_landmarks = _points(21, 0.6, 0.5, 0.05, jitter(21), visibility) if hands else []
 
 
 class _FakeLandmarker:
@@ -70,9 +80,8 @@ class _FakeLandmarker:
         hands = True
         if self.dropout_every and self._n % self.dropout_every == 0:
             hands = False
-        jitter = float(self._rng.normal(0, self.noise))
         self._n += 1
-        return _Result(hands, self.visibility, jitter)
+        return _Result(hands, self.visibility, self._rng, self.noise)
 
     def detect(self, _image):
         return self._next()

@@ -11,6 +11,7 @@ wins; open a PR to reconcile them.
 |---|---|
 | 5.1 Rollout schema | `src/worldgap/data/rollout.py` |
 | 5.1 Temporal provenance | `src/worldgap/data/rollout.py` (`temporal_provenance`, enforced in `Rollout.__post_init__` and `GapAnalyzer.fit()`; see `docs/temporal_provenance.md`) |
+| 5.2 Landmark normalization | `src/worldgap/data/normalization.py` (applied by the video, frame and still-image loaders) |
 | 5.3 SQLite metadata index | `src/worldgap/data/index.py` (`RolloutIndex`) |
 | 5.4 Synthetic perturbation | `src/worldgap/data/loaders/synthetic_perturb.py` |
 | 5.4 V1 real source: video | `src/worldgap/data/loaders/video.py` (`extract_rollout_from_video`, `landmark_quality_ground_truth`) |
