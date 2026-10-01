@@ -192,6 +192,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   tests that need `mediapipe`/`cv2` — including all of
   `tests/test_v1_script_smoke.py` — were skipped on every CI run, and the
   `perception` extra had never been installed by CI on any Python version.
+  Doing so surfaced a real requirement: on Linux, mediapipe's
+  `libmediapipe.so` links `libEGL.so.1` and `libGLESv2.so.2`, so CI now
+  installs `libegl1 libgles2`, and the README and V1 runbook say so. The
+  matrix also runs with `fail-fast: false`, so one Python version failing no
+  longer cancels the others.
 
 ---
 

@@ -51,6 +51,12 @@ gone as well. Every V1 loader here is written against the holistic task, so
 pip install -U "mediapipe>=1.0"
 ```
 
+**On Linux**, mediapipe's native library links `libEGL.so.1` and
+`libGLESv2.so.2`, which headless machines and slim Docker images often lack.
+The symptom is `OSError: libEGL.so.1: cannot open shared object file` on the
+first image call. On Debian/Ubuntu: `sudo apt-get install libegl1 libgles2`.
+Windows and macOS need nothing extra.
+
 If the downloaded `.task` file is a few kilobytes, it is an HTML error page
 with a `.task` name. The preflight catches that too.
 
