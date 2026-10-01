@@ -4,6 +4,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- **The `actuation` extra** (`mujoco>=3.1`). Nothing imported MuJoCo: the V2
+  simulator is an ideal McKibben model in numpy/scipy (`pgm_sim.py`), so the
+  extra downloaded a large dependency the design had deliberately rejected.
+  **V2 needs nothing beyond the core install.** If you had
+  `worldgap[actuation]` pinned, change it to `worldgap`. The rejection is now
+  recorded as a documented deviation in spec 5.5 and 11.
+
+### Changed
+
+- Project URLs (`pyproject.toml`, README, notebook) use the repository's real
+  casing, `Mattral/Worldgap`.
+- Docs brought up to date with 0.2.0. README: PyPI install, CI badge, the V1
+  source described as video rather than HaGRID, the checkpoint-upgrade note.
+  `docs/architecture.md`: module map now covers the video loader, the
+  simulator and the reference data; its "incomplete seams" list described
+  long-fixed stubs. `docs/data_spec.md`: index and temporal provenance
+  documented as implemented, and the PGM section no longer suggests feeding
+  the Fig. 4(a) `Length(Force)` curves to `fit_hysteresis_curve` (a different
+  hysteresis axis). ROADMAP: CI, version guard and release status, 134 tests.
+  `docs/v2_actuation_runbook.md`: run instructions start from a clone, and the
+  reproducibility claim now says what differs across platforms (last digits of
+  per-level MMD²) and what does not.
+- The demo notebook's install cell explains why it installs from GitHub `main`
+  rather than PyPI (so the library matches the notebook).
+
 ## [0.2.0] - 2026-10-01
 
 > **Upgrading from 0.1.0: saved checkpoints will not load.** The world-model

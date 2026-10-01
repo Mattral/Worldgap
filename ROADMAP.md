@@ -36,13 +36,11 @@ at the end of a phase.
       → `PERCEPTION_FEATURE_LAYOUT`-shaped array, including graceful
       per-frame dropout handling) is real and unit tested against duck-typed
       fakes, with zero network access needed (`tests/test_mediapipe_extract.py`).
-      **Still blocked**: actually constructing a working `HolisticLandmarker`
-      needs a `.task` model bundle from `storage.googleapis.com`, which this
-      sandbox's network allowlist blocks (confirmed via a direct request,
-      `x-deny-reason: host_not_allowed`) — combined with needing real
-      downloaded HaGRID/EgoHands frames, that part still needs an environment
-      with both. `egohands.py` delegates to the shared, tested
-      implementation. **Update**: `hagrid.extract_rollout_from_frames()` now
+      Constructing a real `HolisticLandmarker` needs the
+      `holistic_landmarker.task` model bundle, a one-time download on the
+      machine that does the V1 run (`docs/v1_real_data_runbook.md`, Step 0);
+      no real landmarker has produced a result yet. `egohands.py` delegates to
+      the shared, tested implementation. **Update**: `hagrid.extract_rollout_from_frames()` now
       *raises* rather than delegating — see Phase 0 and
       `docs/temporal_provenance.md`. Also found here: the `perception` extra's
       `mediapipe>=0.10` floor permitted 0.10.x wheels, which do **not**
@@ -103,15 +101,25 @@ at the end of a phase.
       rollout stores; verified via `tests/test_cli.py` (train->analyze
       round trip, empty/missing-store errors, validate join + anti-cherry-pick
       rejection) and against the real installed console-script entry point.
-      Still out of scope: producing rollout stores from raw HaGRID/EgoHands
-      frames in the first place (Phase 1's MediaPipe blocker)
+      The CLI consumes rollout stores rather than building them;
+      `scripts/run_v1_real_data.py` builds V1 stores from video in the same
+      `{dir}/index.db` + `{dir}/{modality}/*.npz` layout
 - [x] Demo notebook (`notebooks/demo.ipynb`) — executes top-to-bottom via
       `jupyter nbconvert --execute` with zero manual intervention (acceptance
       criterion, spec Section 13); covers V1, the V1/V2 reusability claim, and
-      the validation harness's anti-cherry-picking rejection, entirely on
-      synthetic data
+      the validation harness's anti-cherry-picking rejection on synthetic
+      data, plus a Part 4 on the bundled digitized PGM reference data
 - [x] Report generation (spec 9.3) — `report.py`, HTML and Markdown output,
-      tested; includes the spec-210 Frechet/MMD rank-disagreement diagnostic
+      tested; includes the spec 7.2 Fréchet/MMD rank-disagreement diagnostic
+- [x] CI (GitHub Actions) on Python 3.10/3.11/3.12 with `.[dev,perception]`
+      installed, so the 6 MediaPipe/OpenCV tests — including all of
+      `tests/test_v1_script_smoke.py` — run instead of skipping. Until 0.2.0
+      they were skipped on every run. On Linux the `perception` extra also
+      needs `libegl1 libgles2`, which CI installs.
+- [x] `tests/test_version.py` keeps `pyproject.toml` and
+      `worldgap.__version__` in sync.
+- [x] **0.2.0 released** to PyPI (tag `v0.2.0`). Breaks 0.1.0 checkpoints;
+      see `CHANGELOG.md`.
 
 ## Phase 6 — V2 actuation gap
 - [x] Two-branch hysteresis-aware curve fit (spec 5.5, edge case 12.13) — tested
@@ -167,7 +175,8 @@ at the end of a phase.
 
 ## What's actually done vs. what's scaffolded
 
-**Genuinely implemented and tested** (133 passing tests as of this writing):
+**Genuinely implemented and tested** (134 passing tests as of 0.2.0, with the
+`perception` extra installed; without it, 6 skip):
 Rollout schema with temporal-provenance enforcement, SQLite metadata index,
 synthetic perturbation, video loading and MediaPipe-side ground-truth
 extraction, Fréchet + MMD metrics, EMA, collapse safeguard, both encoders, the
@@ -186,10 +195,9 @@ sim-vs-real numbers with no download required; see
 **Written, smoke-tested, not yet run on real input**: V1.
 `scripts/run_v1_real_data.py` is exercised end-to-end in the test suite
 against real video files with a faked landmarker
-(`tests/test_v1_script_smoke.py`). What it still needs is recordings and the
-MediaPipe model bundle — neither of which this sandbox can obtain, and both
-of which take under an hour on a normal machine with a webcam. See
-`docs/v1_real_data_runbook.md`.
+(`tests/test_v1_script_smoke.py`, run in CI). What it still needs is
+recordings and the MediaPipe model bundle — about an hour on a normal machine
+with a webcam. See `docs/v1_real_data_runbook.md`.
 
 **Not done, and not claimed**: any result validated against independently
 measured transfer degradation (spec 8.1). Nothing in this repository is a

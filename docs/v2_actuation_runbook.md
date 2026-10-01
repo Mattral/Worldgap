@@ -1,12 +1,17 @@
 # V2 runbook — simulated PGM vs. real characterization
 
 ```bash
+git clone https://github.com/Mattral/Worldgap.git && cd Worldgap
+pip install -e .
 python scripts/run_v2_actuation.py --out ./v2_run
 ```
 
-That is the whole setup. No downloads, no model bundle, no recordings — the
-real reference data ships inside the package. This is the reproducible half of
-worldgap: anyone who installs it can reproduce every number below.
+That is the whole setup: the core install, no extras. No downloads, no model
+bundle, no recordings — the real reference data ships inside the package. (The
+script lives in the repo, not the wheel, hence the clone.) This is the
+reproducible half of worldgap: anyone can rerun it and get the numbers below
+(see the reproducibility note under the results for what "same" means across
+platforms).
 
 ---
 
@@ -73,7 +78,14 @@ surprise:
 
 ## Results
 
-Reproducible with the command at the top (`seed: 0`, bit-identical across runs).
+Reproducible with the command at the top (`seed: 0`): bit-identical across
+runs on the same platform and torch build. Across platforms, expect the last
+digits of the per-level MMD² values to move: on Windows with Python 3.14 and
+torch 2.14 (CPU), they differ from the table below by up to 3×10⁻⁶ (e.g.
+−0.128881 vs −0.128882), while the physical residuals, every Fréchet value, the
+overall MMD² and ρ = +0.943 match to all printed digits. Floating-point
+reduction order differs between torch builds; spec 12.18's lockfile is what
+pins it exactly.
 
 ### 1. Physical residuals — the interpretable number
 

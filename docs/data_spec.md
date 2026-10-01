@@ -32,17 +32,31 @@ data/
   processed/
     perception/{rollout_id}.npz
     actuation/{rollout_id}.npz
-  index.db                # metadata index (not yet implemented -- see ROADMAP)
+  index.db                # SQLite metadata index (RolloutIndex, data/index.py)
 ```
 
 `Rollout.save()` / `Rollout.load()` in `rollout.py` implement the per-file
-part of this; the SQLite metadata index is a Phase 1 item.
+part of this; `RolloutIndex` in `data/index.py` is the metadata index. The CLI
+treats each `--data-dir`/`--source`/`--target` as its own self-contained store
+(`{dir}/index.db` + `{dir}/{modality}/*.npz`) — see spec 9.2's implementation
+note.
+
+## Temporal provenance (spec 5.1, 5.4)
+
+Every rollout records where its *time axis* came from in
+`metadata["temporal_provenance"]`: `video`, `simulated`, `quasi_static_sweep`,
+`static_pose` or `synthetic_from_static`. `static_pose` rollouts must have one
+frame. V1's real trajectories come from video (including your own webcam), not
+HaGRID, which is a still-image dataset. Full rationale:
+[`temporal_provenance.md`](temporal_provenance.md).
 
 ## Canonical gesture subset (spec 5.4)
 
-`CANONICAL_GESTURES` in `hagrid.py` is a **placeholder** — confirm against
-HaGRID's real class list and the ForceHand glove's actual controllable DOFs
-during the Phase 0 data audit before trusting it.
+`CANONICAL_GESTURES` in `hagrid.py` (`fist`, `palm`, `stop`, `like`) are all
+confirmed real HaGRID v1 class names, and the V1 runbook's recording routine
+uses the same four. Whether they match the ForceHand glove's actual
+controllable DOFs is still open — treat the set as a **placeholder** for that
+purpose.
 
 ## Synthetic perturbations (spec 5.4)
 
@@ -54,11 +68,30 @@ All three in `data/loaders/synthetic_perturb.py`, all seeded and reproducible:
   subgroup, **and** sets `presence_mask` to 0 for the same window (never
   zero-fill without also masking — edge case 12.1).
 
-## PGM reference curve (spec 5.5)
+## PGM reference data (spec 5.5)
 
-Digitize published Ogawa et al. (2017) figures via WebPlotDigitizer into
-`(pressure, response)` arrays, then fit with
-`data/loaders/pgm_actuator.fit_hysteresis_curve` — a two-branch (loading vs.
-unloading) polynomial fit, not a single monotonic curve (edge case 12.13).
-Always run `check_residual_structure` afterward and don't trust the fit if
-`flag_unmodeled_hysteresis` is `True`.
+What ships in the wheel, with full provenance in
+[`pgm_reference_data.md`](pgm_reference_data.md):
+
+- **Ogawa et al. (2017) Fig. 4(a), digitized** — `Length(Force)` at each of the
+  7 tested pressures (0–0.3 MPa), via `load_ogawa2017_fig4a_curve(p)`.
+  Isotonic-smoothed, with a per-curve `digitization_noise_floor_mm` (a
+  heuristic floor, not a confidence interval). `.length_at(F)` refuses to
+  extrapolate.
+- **Thakur et al. (2018) force–pressure equations** —
+  `thakur2018_force_from_pressure(kPa, stretched)`, valid 50–300 kPa only.
+
+Keep the two papers' numbers separate: they measure different dependent
+variables under different held-constant conditions.
+
+V2 state layout is `[pressure_mpa, force_n, length_mm]`, normalized by the
+fixed `ACTUATION_NORMALIZATION` constants (never fitted from either domain).
+`pgm_sim.simulated_pgm_rollout(p)` and `digitized_pgm_rollout(p)` build the two
+sides.
+
+`fit_hysteresis_curve` (two-branch loading/unloading fit, edge case 12.13) is
+for **pressure-ramp** hysteresis data, which neither paper publishes, so it is
+validated on synthetic data only. Do **not** feed it the Fig. 4(a)
+`Length(Force)` curves — they are a different hysteresis axis. If you do use it
+on real ramp data, run `check_residual_structure` afterward and don't trust the
+fit if `flag_unmodeled_hysteresis` is `True`.

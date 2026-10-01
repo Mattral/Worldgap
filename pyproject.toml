@@ -56,11 +56,9 @@ dependencies = [
 perception = [
     "mediapipe>=1.0",
 ]
-# V2 data loading only: MuJoCo compliant-actuator simulation. The world model
-# itself does NOT need this extra.
-actuation = [
-    "mujoco>=3.1",
-]
+# There is deliberately no `actuation` extra: V2 runs on the core install.
+# The simulated actuator (`data/loaders/pgm_sim.py`) is an ideal McKibben
+# model in numpy/scipy, not MuJoCo -- see that module's docstring and spec 5.5.
 dev = [
     "pytest>=8.0",
     "hypothesis>=6.100",
@@ -73,10 +71,10 @@ dev = [
 worldgap = "worldgap.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Mattral/worldgap"
-Repository = "https://github.com/Mattral/worldgap"
-Issues = "https://github.com/Mattral/worldgap/issues"
-Changelog = "https://github.com/Mattral/worldgap/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Mattral/Worldgap"
+Repository = "https://github.com/Mattral/Worldgap"
+Issues = "https://github.com/Mattral/Worldgap/issues"
+Changelog = "https://github.com/Mattral/Worldgap/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/worldgap"]
