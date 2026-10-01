@@ -4,6 +4,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`docs/v1_first_run_results.md`: the first real V1 run, result null.** 33
+  webcam recordings (one subject, 11 folders × 3 takes), 10 pre-registered
+  conditions. Spearman ρ = −0.224 between the Fréchet gap score and MediaPipe
+  hand dropout, 95% CI [−0.810, 0.539]. Recorded unchanged, before any code
+  change it prompted. Two causes found afterwards and given equal weight: the
+  condition set gave the ground truth almost no dynamic range (take-to-take
+  sd 3.44 pp ≥ between-condition sd 3.02 pp), and spec 5.2 normalization had
+  never been implemented (now noted in spec 5.2). The low-confidence flag is
+  itself optimistic: windows from one recording are not independent, so the
+  effective n per condition is nearer 3 than 138.
+
 ### Fixed
 
 - **`scripts/run_v1_real_data.py` crashed on the second video of the first

@@ -125,6 +125,7 @@ class Rollout:
 - Translate landmarks relative to a reference point: hip-midpoint for pose, wrist for each hand (a standard normalization convention for pose-relative landmark features, so results transfer conceptually to other gesture-tracking pipelines using the same convention).
 - Scale by a reference length: shoulder width for pose, hand bounding-box diagonal for each hand.
 - Normalization parameters (reference point, scale factor) MUST be stored per-frame in metadata, not discarded, so raw values are always recoverable.
+- *Implementation note (deviation, recorded when found):* through 0.2.0 this section was **not implemented**; the V1 pipeline fed raw image coordinates to the model, and nothing documented it. Found by the first real V1 run, whose result is recorded unchanged in `docs/v1_first_run_results.md`. Remove this note when normalization lands.
 
 ### 5.3 Storage layout (MUST)
 

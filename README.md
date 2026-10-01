@@ -30,10 +30,10 @@ One core library. Two current use cases, distinguished only by which encoder plu
 ## Status
 
 Be suspicious of libraries that don't say this plainly, so: **nothing here has been
-validated against real measured ground truth yet.** Every gap number this repo has
-produced so far came from synthetic data or from data digitized off a published
-figure. The word "validated" is reserved for when spec 8.1's independent ground
-truth actually exists.
+validated against real measured ground truth.** V2's numbers come from data
+digitized off a published figure. V1 has now been run once on real recordings
+against spec 8.1's independent ground truth, and that pre-registered test came
+out **null** (below). The word "validated" is reserved for a test that passes.
 
 What *is* real:
 
@@ -50,12 +50,15 @@ What *is* real:
 - A **simulated PGM actuator baseline** (`pgm_sim.py`) and a V2 end-to-end path that
   compares it against those digitized curves — see `docs/v2_actuation_runbook.md`.
 
-What is *not* done: a real V1 run — webcam/video recordings of a gesture routine
-under ≥10 deployment-like conditions, run through MediaPipe.
-`docs/v1_real_data_runbook.md` and `scripts/run_v1_real_data.py` are written and
-tested; what's missing is the recordings. Until then there is no validation
-against real MediaPipe confidence/dropout. (HaGRID is a still-image dataset and
-cannot supply V1's trajectories — see `docs/temporal_provenance.md`.)
+**First real V1 run (2026-10-01): null result.** On the author's own webcam
+recordings across 10 pre-registered conditions, the gap score did not predict
+MediaPipe hand dropout (Spearman ρ = −0.22, 95% CI [−0.81, 0.54]). Two reasons,
+both found afterwards: the conditions barely made MediaPipe fail (take-to-take
+noise was as large as the difference between conditions), and spec 5.2's
+landmark normalization had not been implemented. Full write-up:
+[`docs/v1_first_run_results.md`](docs/v1_first_run_results.md). (HaGRID is a
+still-image dataset and cannot supply V1's trajectories — see
+`docs/temporal_provenance.md`.)
 
 A note on what the bundled PGM data covers: Ogawa et al. (2017) Section 4 states the
 characterized actuator is a 300 mm walking-assist-scale muscle and explicitly says

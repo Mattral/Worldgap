@@ -74,9 +74,12 @@ at the end of a phase.
 - [x] Real convergence check on non-synthetic data — done for **actuation**:
       the V2 run fits on the simulated PGM and encodes the real digitized
       curves without collapse (`scripts/run_v2_actuation.py`).
-- [ ] Real convergence check on **perception** data — needs recordings; the
-      runbook and script are written and smoke-tested
-      (`docs/v1_real_data_runbook.md`).
+- [x] Real convergence check on **perception** data — done 2026-10-01: fitted
+      on 138 windows from 3 real clean recordings without collapse (final
+      loss 0.024). See `docs/v1_first_run_results.md`.
+- [ ] **Spec 5.2 landmark normalization** — a MUST for V1 that was never
+      implemented; the model saw raw image coordinates. Found by the first
+      real run. Next item.
 
 ## Phase 3 — Divergence module
 - [x] Fréchet distance with Ledoit-Wolf shrinkage + complex-component handling
@@ -87,11 +90,14 @@ at the end of a phase.
 - [x] `ValidationHarness` with enforced pre-registration (anti-cherry-picking,
       spec 8.3) — tested
 - [x] Spearman + bootstrap CI (spec 8.2) — tested
-- [ ] Actual V1 validation run against real MediaPipe-confidence ground truth
-      — **no longer blocked, just not run**: the ground-truth computation
-      exists and is tested (`landmark_quality_ground_truth()`), and
-      `scripts/run_v1_real_data.py` pre-registers conditions to disk before
-      computing any score. It needs ≥10 recorded conditions.
+- [x] First V1 validation run against real MediaPipe ground truth — done
+      2026-10-01, **null**: ρ = −0.224, 95% CI [−0.810, 0.539] across 10
+      pre-registered conditions. Ground truth had almost no dynamic range
+      (within-condition sd 3.44 pp ≥ between-condition 3.02 pp), and spec 5.2
+      normalization was missing. `docs/v1_first_run_results.md`.
+- [ ] Run 2: a condition set where MediaPipe actually fails across a range of
+      severities, pre-registered before any re-scoring, run after spec 5.2
+      normalization lands.
 
 ## Phase 5 — Packaging, CLI, demo notebook
 - [x] `pyproject.toml`, src-layout, editable install — verified working
@@ -192,12 +198,11 @@ including a Part 4 that reaches the real digitized reference data.
 sim-vs-real numbers with no download required; see
 `docs/v2_actuation_runbook.md`.
 
-**Written, smoke-tested, not yet run on real input**: V1.
-`scripts/run_v1_real_data.py` is exercised end-to-end in the test suite
-against real video files with a faked landmarker
-(`tests/test_v1_script_smoke.py`, run in CI). What it still needs is
-recordings and the MediaPipe model bundle — about an hour on a normal machine
-with a webcam. See `docs/v1_real_data_runbook.md`.
+**Run on real data, result null**: V1. The first run (2026-10-01, 33 webcam
+recordings, 10 pre-registered conditions) did not show the gap score
+predicting MediaPipe hand dropout. The condition set gave the ground truth too
+little range, and spec 5.2 normalization was missing. See
+`docs/v1_first_run_results.md`.
 
 **Not done, and not claimed**: any result validated against independently
 measured transfer degradation (spec 8.1). Nothing in this repository is a
