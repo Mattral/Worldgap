@@ -142,10 +142,10 @@ def extract_condition(
 def save_store(rollouts: list, store_dir: Path) -> None:
     """Writes a self-contained rollout store: {dir}/index.db + {dir}/{modality}/*.npz."""
     store_dir.mkdir(parents=True, exist_ok=True)
-    index = RolloutIndex(store_dir / "index.db")
-    for r in rollouts:
-        r.save(store_dir)
-        index.add(r)
+    with RolloutIndex(store_dir / "index.db") as index:
+        for r in rollouts:
+            r.save(store_dir)
+            index.add(r)
 
 
 def aggregate_ground_truth(rows: list[dict]) -> float:

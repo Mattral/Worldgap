@@ -28,6 +28,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ..normalization import normalize_rollout
 from ..rollout import (
     PERCEPTION_STATE_DIM,
     TEMPORAL_PROVENANCE_KEY,
@@ -145,20 +146,24 @@ def extract_rollout_from_video(
     if not states:
         raise ValueError(f"{video_path} decoded to zero usable frames")
 
-    return Rollout(
-        modality="perception",
-        source="real",
-        condition={**(condition or {}), "video": video_path.name},
-        frame_rate_hz=native_fps / stride,
-        states=np.stack(states),
-        presence_mask=np.stack(presences).astype(np.float64),
-        timestamps_ms=np.asarray(timestamps_ms, dtype=np.float64),
-        metadata={
-            **(metadata or {}),
-            TEMPORAL_PROVENANCE_KEY: "video",
-            "native_fps": float(native_fps),
-            "stride": stride,
-        },
+    # Spec 5.2: normalized here, at the one place real video becomes a
+    # rollout, so every caller (including scripts/run_v1_real_data.py) gets it.
+    return normalize_rollout(
+        Rollout(
+            modality="perception",
+            source="real",
+            condition={**(condition or {}), "video": video_path.name},
+            frame_rate_hz=native_fps / stride,
+            states=np.stack(states),
+            presence_mask=np.stack(presences).astype(np.float64),
+            timestamps_ms=np.asarray(timestamps_ms, dtype=np.float64),
+            metadata={
+                **(metadata or {}),
+                TEMPORAL_PROVENANCE_KEY: "video",
+                "native_fps": float(native_fps),
+                "stride": stride,
+            },
+        )
     )
 
 

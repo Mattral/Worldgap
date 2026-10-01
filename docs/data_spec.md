@@ -24,6 +24,16 @@ Total: 258. `PERCEPTION_STATE_DIM` in `rollout.py` enforces this.
 - Store the normalization parameters in `metadata`, not just the normalized
   values — raw values must stay recoverable.
 
+Implemented in `data/normalization.py` (`normalize_rollout`,
+`denormalize_states`) and applied by every loader that creates real
+perception rollouts. Parameters are per frame, in
+`metadata["normalization"]["per_frame"]` as JSON lists (`pose_origin`,
+`pose_scale`, `left_hand_origin`, ...); `split_into_windows` slices them to
+each window. Visibility and presence are never changed. Hand-built synthetic
+rollouts are not normalized automatically: call `normalize_rollout()` if you
+want them comparable with real ones. Caveat: when the hips are out of frame,
+the hip-midpoint origin is MediaPipe's extrapolation (spec 5.2 note).
+
 ## Storage (spec 5.3)
 
 ```

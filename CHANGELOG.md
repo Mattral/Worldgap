@@ -19,6 +19,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Spec 5.2 landmark normalization, implemented** (`data/normalization.py`).
+  It is a MUST for V1 and was never implemented; the first real run fed raw
+  image coordinates to the model. Pose is translated by the hip midpoint and
+  scaled by shoulder width, each hand by its wrist and bounding-box diagonal;
+  visibility and presence are untouched. Per-frame parameters go to
+  `metadata["normalization"]`, survive the SQLite index and windowing, and
+  `denormalize_states()` recovers raw values exactly. Applied by
+  `extract_rollout_from_video`, `extract_rollout_from_frames` and
+  `extract_static_pose_rollouts`. **Behaviour change:** perception rollouts
+  from these loaders are now normalized, so stores and checkpoints built
+  before this are not comparable with new ones (the first run's numbers stay
+  as recorded in `docs/v1_first_run_results.md`). `tests/test_normalization.py`
+  (9 tests) includes the property the defect broke: a rollout translated or
+  scaled as a whole produces the same states and the same encoding, checked
+  through the real video-loader path too. The V1 smoke test's fake landmarks
+  now have real extent and per-landmark noise; with every point on one spot
+  (and one shared jitter, i.e. a translation) they normalized to constants.
+  Spec 5.2 notes an open question: with the hips out of frame (mean
+  visibility 0.005 in the first run's clean recordings), the hip-midpoint
+  origin is MediaPipe's extrapolation.
+- `scripts/run_v1_real_data.py` closes each rollout store's SQLite index
+  (`save_store` leaked the connection).
+- V2 runbook: results are bit-identical only for the same platform, torch
+  build and CPU thread count; with 4 threads the overall MMD² reads −0.014865
+  instead of −0.014864.
 - **`scripts/run_v1_real_data.py` crashed on the second video of the first
   real run** with `ValueError: Input timestamp must be monotonically
   increasing`. It built one VIDEO-mode `HolisticLandmarker` and reused it for
