@@ -95,23 +95,38 @@ def discover_conditions(recordings_root: Path) -> dict[str, list[Path]]:
 def extract_condition(
     name: str,
     videos: list[Path],
-    landmarker,
+    make_landmarker,
     window_frames: int,
     max_frames: int | None,
     stride: int,
 ) -> tuple[list, list[dict]]:
-    """Returns (windowed rollouts, per-recording ground-truth dicts)."""
+    """Returns (windowed rollouts, per-recording ground-truth dicts).
+
+    `make_landmarker` is called once per video, and that landmarker is closed
+    when the video is done. Sharing one across videos fails outright in
+    MediaPipe's VIDEO mode (each file's timestamps restart at 0, and the
+    landmarker requires them to increase monotonically). Shifting the
+    timestamps would avoid that error but carry frame-to-frame tracking state
+    from the end of one recording into the start of the next, possibly one
+    from a different condition.
+    """
     rollouts = []
     ground_truths = []
     for path in videos:
         print(f"    {path.name} ... ", end="", flush=True)
-        full = extract_rollout_from_video(
-            path,
-            landmarker,
-            condition={"capture_condition": name},
-            max_frames=max_frames,
-            stride=stride,
-        )
+        landmarker = make_landmarker()
+        try:
+            full = extract_rollout_from_video(
+                path,
+                landmarker,
+                condition={"capture_condition": name},
+                max_frames=max_frames,
+                stride=stride,
+            )
+        finally:
+            close = getattr(landmarker, "close", None)
+            if close:
+                close()
         gt = landmark_quality_ground_truth(full)
         ground_truths.append({"recording": path.name, **gt})
         windows = split_into_windows(full, window_frames=window_frames)
@@ -207,22 +222,19 @@ def main() -> int:
           f"{args.out / 'preregistered_conditions.json'}")
 
     print("\nExtracting landmarks")
-    landmarker = build_landmarker(args.model, video_mode=args.stride == 1)
+    def make_landmarker():
+        return build_landmarker(args.model, video_mode=args.stride == 1)
+
     all_ground_truth: dict[str, list[dict]] = {}
     store_rollouts: dict[str, list] = {}
-    try:
-        for name, videos in conditions.items():
-            print(f"  [{name}]")
-            rollouts, gts = extract_condition(
-                name, videos, landmarker, args.window_frames, args.max_frames, args.stride
-            )
-            store_rollouts[name] = rollouts
-            all_ground_truth[name] = gts
-            save_store(rollouts, args.out / "stores" / name)
-    finally:
-        close = getattr(landmarker, "close", None)
-        if close:
-            close()
+    for name, videos in conditions.items():
+        print(f"  [{name}]")
+        rollouts, gts = extract_condition(
+            name, videos, make_landmarker, args.window_frames, args.max_frames, args.stride
+        )
+        store_rollouts[name] = rollouts
+        all_ground_truth[name] = gts
+        save_store(rollouts, args.out / "stores" / name)
 
     (args.out / "ground_truth.json").write_text(json.dumps(all_ground_truth, indent=2))
     print(f"\nGround truth (MediaPipe's own signals) -> {args.out / 'ground_truth.json'}")

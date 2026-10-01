@@ -76,7 +76,9 @@ def extract_rollout_from_video(
         use_video_mode: call `detect_for_video()` when available. MediaPipe's
             VIDEO running mode tracks across frames rather than re-detecting each
             one independently, which is both faster and closer to how a live
-            deployment behaves. Falls back to `detect()` automatically.
+            deployment behaves. Falls back to `detect()` automatically. A
+            VIDEO-mode landmarker must be fresh for each file: timestamps
+            restart at 0 per video and MediaPipe requires them to increase.
 
     Frames where nothing was detected are kept with `presence_mask=False`, never
     dropped or interpolated -- spec 8.1's ground truth *is* that dropout, so
