@@ -4,6 +4,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+> **Upgrading from 0.2.0: the same video now yields different states.**
+> 0.2.0's loaders (`extract_rollout_from_video`, `extract_rollout_from_frames`,
+> `extract_static_pose_rollouts`) return **unnormalized** image coordinates.
+> From the next release they **normalize by default**, anchoring the pose at
+> the **shoulder midpoint** (`normalization_scheme="shoulder_midpoint"`), and
+> record the scheme in `metadata["normalization"]`. Consequences:
+> - Rollout stores, checkpoints and gap scores produced with 0.2.0 are **not
+>   comparable** with ones produced now, even from identical recordings.
+> - `GapAnalyzer` refuses to train on or compare rollouts with different
+>   schemes, and treats unnormalized vs. normalized as different.
+> - To bring 0.2.0 stores forward, either re-extract from the original
+>   recordings, or apply `normalize_rollout(r, scheme)` to each saved
+>   (unnormalized) rollout: normalization is per frame, so this gives exactly
+>   the re-extracted states. Then re-fit. Use `hip_midpoint` only if every
+>   rollout in the study uses it.
+
 ### Added
 
 - **`docs/v1_first_run_results.md`: the first real V1 run, result null.** 33
@@ -81,7 +97,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   scheme (normalized vs. raw counts as different), in the same spirit as the
   temporal-provenance guard. The training scheme is saved in checkpoints
   (older checkpoints load with it unknown, and only the source/target check
-  applies). `tests/test_normalization_scheme_guard.py` (7 tests).
+  applies). The refusal names the fix: re-extract with one scheme, or `normalize_rollout()` saved unnormalized rollouts. `tests/test_normalization_scheme_guard.py` (9 tests).
 - `docs/v1_first_run_results.md`: the claim that no gap score could have
   correlated with run 1's ground truth was too strong for two similar
   standard deviations (3.44 vs 3.02 pp). Now: take-to-take noise comparable

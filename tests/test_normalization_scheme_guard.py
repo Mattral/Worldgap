@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from worldgap import GapAnalyzer, GapConfig, Rollout
+from worldgap import GapAnalyzer, GapConfig, Rollout, split_into_windows
 from worldgap.config import EncoderConfig, TrainingConfig, WorldModelConfig
 from worldgap.data.normalization import normalize_rollout, require_single_scheme
 from worldgap.data.rollout import PERCEPTION_STATE_DIM, TEMPORAL_PROVENANCE_KEY
@@ -96,6 +96,32 @@ def test_training_scheme_survives_a_checkpoint(fitted_on_shoulder, tmp_path: Pat
     with pytest.raises(ValueError, match="trained on 'shoulder_midpoint'"):
         reloaded.compute_gap(_normed(6, 1, "hip_midpoint"), _normed(6, 2, "hip_midpoint"))
     reloaded.compute_gap(_normed(6, 1, "shoulder_midpoint"), _normed(6, 2, "shoulder_midpoint"))
+
+
+def test_refusals_name_the_remedy(fitted_on_shoulder):
+    """Whoever hits the guard should learn what to do: re-extract with one
+    scheme, or normalize rollouts that were saved unnormalized."""
+    errors = []
+    for src, tgt in (
+        (_normed(6, 1, "shoulder_midpoint"), _normed(6, 2, "hip_midpoint")),
+        (_normed(6, 1, "hip_midpoint"), _normed(6, 2, "hip_midpoint")),
+    ):
+        with pytest.raises(ValueError) as e:
+            fitted_on_shoulder.compute_gap(src, tgt)
+        errors.append(str(e.value))
+    for msg in errors:
+        assert "re-extract" in msg and "normalize_rollout" in msg
+
+
+def test_normalizing_saved_raw_rollouts_matches_normalizing_at_extraction():
+    """Normalization is per frame, so a raw rollout normalized after the fact
+    (e.g. a store saved before normalization existed) equals one normalized at
+    extraction, window by window."""
+    raw = _raw(1, 7)[0]
+    at_extraction = split_into_windows(normalize_rollout(raw, "shoulder_midpoint"), window_frames=5)
+    after_the_fact = [normalize_rollout(w, "shoulder_midpoint") for w in split_into_windows(raw, window_frames=5)]
+    for a, b in zip(at_extraction, after_the_fact):
+        np.testing.assert_array_equal(a.states, b.states)
 
 
 def test_unnormalized_sets_report_no_scheme():

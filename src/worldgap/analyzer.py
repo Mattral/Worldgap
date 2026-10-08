@@ -18,6 +18,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from .config import GapConfig
+from .data.normalization import REMEDY as NORMALIZATION_REMEDY
 from .data.normalization import require_single_scheme
 from .data.rollout import Rollout
 from .metrics.frechet import FrechetResult, frechet_distance
@@ -264,7 +265,7 @@ class GapAnalyzer:
                 f"refusing to compare rollouts with normalization scheme "
                 f"{scheme or 'unnormalized'!r}: this model was trained on "
                 f"{self._normalization_scheme or 'unnormalized'!r}. The normalization "
-                "scheme is fixed per study."
+                f"scheme is fixed per study. {NORMALIZATION_REMEDY}"
             )
         source_latents = self._rollouts_to_summary_latents(source_rollouts)
         target_latents = self._rollouts_to_summary_latents(target_rollouts)

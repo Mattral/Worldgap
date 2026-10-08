@@ -59,6 +59,16 @@ SCHEMES: dict[str, tuple[int, int]] = {
 }
 DEFAULT_SCHEME = "shoulder_midpoint"
 
+#: What to do when the guard refuses. Normalization is per frame, so applying
+#: it to rollouts saved unnormalized (e.g. the first V1 run's stores) gives
+#: exactly what re-extraction would; verified on run 1's data, max difference 0.
+REMEDY = (
+    "Fix: re-extract every rollout from the original recordings with one scheme "
+    "(the loaders' normalization_scheme=..., or run_v1_real_data.py --normalization), "
+    "then re-fit. For rollouts saved UNnormalized, normalize_rollout(r, scheme) gives "
+    "the same states without re-extracting. Do not compare across schemes."
+)
+
 # Below this, a reference length is treated as degenerate (all landmarks at
 # one point, which real detections never produce): the block is translated
 # but not scaled, and the frame is counted in `n_degenerate_frames`.
@@ -167,9 +177,8 @@ def require_single_scheme(rollouts: Iterable[Rollout], purpose: str) -> str | No
         raise ValueError(
             f"refusing to {purpose} rollouts with different landmark normalization "
             f"schemes {shown}. The scheme is fixed per study: a gap measured across "
-            "schemes includes the change of anchor itself, not just the change of "
-            "conditions. Re-extract every rollout with one scheme "
-            "(see worldgap.data.normalization)."
+            f"schemes includes the change of anchor itself, not just the change of "
+            f"conditions. {REMEDY}"
         )
     return next(iter(schemes)) if schemes else None
 
