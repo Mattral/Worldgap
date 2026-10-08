@@ -22,6 +22,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`docs/v1_run2_preregistration.md`: run 2, pre-registered** before any
+  run-2 recording exists. 24 software-degraded conditions from fresh clean
+  recordings (`darken`, `downscale`, `blur`, `noise` × 6 severities, chosen by
+  a pilot on run 1's footage that computed no gap scores), plus 6 physical
+  conditions reported descriptively. Primary ground truth: paired landmark
+  error, a documented spec 8.1 deviation, because with dropout as ground truth
+  the trivial dropout baseline would *be* the ground truth. Two confirmatory
+  rules: the CI of ρ(gap, landmark error) excludes zero, and the gap score
+  beats a dropout-counting baseline (paired-bootstrap CI of Δρ excludes zero;
+  the pilot's baseline ρ was +0.56). Also fixed in advance: 75 s takes,
+  `summary_dim` 16 (so 138 windows clear "low"), the shoulder anchor, and that
+  conditions are never dropped.
 - **Run-2 tooling.** `worldgap.data.degradations.ImageDegradation`: graded,
   deterministic image degradations (`darken`, `downscale`, `blur`, `noise`)
   for software-degraded conditions built from real clean recordings, so every

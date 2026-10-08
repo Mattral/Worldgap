@@ -106,9 +106,14 @@ at the end of a phase.
       pre-registered conditions. Ground truth had almost no dynamic range
       (within-condition sd 3.44 pp ≥ between-condition 3.02 pp), and spec 5.2
       normalization was missing. `docs/v1_first_run_results.md`.
-- [ ] Run 2: a condition set where MediaPipe actually fails across a range of
-      severities, pre-registered before any re-scoring, run after spec 5.2
-      normalization lands.
+- [x] Run 2 **pre-registered** (`docs/v1_run2_preregistration.md`), committed
+      before any run-2 recording. 24 software-degraded conditions from fresh
+      clean recordings (4 factors × 6 severities, chosen by a pilot that
+      computed no gap scores), plus 6 descriptive physical conditions. Primary
+      ground truth: paired landmark error. Decision rules: ρ CI lower bound > 0,
+      and beating a dropout-counting baseline (CI on Δρ > 0).
+- [ ] Run 2: analysis script with caching (committed before processing),
+      recordings, overnight run, results.
 
 ## Phase 5 — Packaging, CLI, demo notebook
 - [x] `pyproject.toml`, src-layout, editable install — verified working
