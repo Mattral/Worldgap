@@ -42,6 +42,7 @@ __all__ = [
     "extract_rollout_from_video",
     "landmark_quality_ground_truth",
     "list_videos",
+    "paired_landmark_error",
     "split_into_windows",  # re-exported: it is modality-agnostic and lives in rollout.py
 ]
 from .mediapipe_extract import holistic_result_to_feature_vector
@@ -65,6 +66,7 @@ def extract_rollout_from_video(
     stride: int = 1,
     use_video_mode: bool = True,
     normalization_scheme: str = DEFAULT_SCHEME,
+    frame_transform=None,
 ) -> Rollout:
     """Decodes `video_path` and runs `landmarker` over its frames in order.
 
@@ -84,6 +86,11 @@ def extract_rollout_from_video(
         normalization_scheme: pose anchor for landmark normalization (see
             `worldgap.data.normalization`). Fixed per study: every rollout
             that will be compared must use the same one.
+        frame_transform: optional `(frame_bgr, frame_index) -> frame_bgr`
+            applied to each decoded frame before MediaPipe, e.g. an
+            `ImageDegradation` (`worldgap.data.degradations`). Recorded in the
+            rollout's metadata, so a degraded rollout says what was done to
+            it. Frames are otherwise untouched.
 
     Frames where nothing was detected are kept with `presence_mask=False`, never
     dropped or interpolated -- spec 8.1's ground truth *is* that dropout, so
@@ -130,6 +137,8 @@ def extract_rollout_from_video(
             if not ok:
                 break
             if frame_index % stride == 0:
+                if frame_transform is not None:
+                    frame_bgr = np.ascontiguousarray(frame_transform(frame_bgr, frame_index))
                 rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
                 image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 ts_ms = frame_index * (1000.0 / native_fps)
@@ -150,6 +159,11 @@ def extract_rollout_from_video(
     if not states:
         raise ValueError(f"{video_path} decoded to zero usable frames")
 
+    transform_meta = {}
+    if frame_transform is not None:
+        describe = getattr(frame_transform, "describe", None)
+        transform_meta["frame_transform"] = describe() if describe else repr(frame_transform)
+
     # Spec 5.2: normalized here, at the one place real video becomes a
     # rollout, so every caller (including scripts/run_v1_real_data.py) gets it.
     return normalize_rollout(
@@ -166,6 +180,7 @@ def extract_rollout_from_video(
                 TEMPORAL_PROVENANCE_KEY: "video",
                 "native_fps": float(native_fps),
                 "stride": stride,
+                **transform_meta,
             },
         ),
         normalization_scheme,
@@ -251,4 +266,75 @@ def landmark_quality_ground_truth(rollout: Rollout) -> dict[str, float]:
         "mean_pose_visibility": mean_visibility,
         "longest_dropout_run_s": float(longest_run / fps) if fps else float("nan"),
         "n_frames": float(n_frames),
+    }
+
+
+def paired_landmark_error(reference: Rollout, degraded: Rollout) -> dict[str, float]:
+    """How far a degraded recording's hand landmarks land from the clean
+    detection of the *same frame*, in units of the clean hand's size.
+
+    Only defined for paired data: `degraded` must be the same video as
+    `reference` with a frame transform applied (run 2's software-degraded
+    conditions), so frame t of one is frame t of the other.
+
+    This measures tracking *quality* rather than tracking *presence*. The
+    presence mask (which the world model sees as input) says nothing about it,
+    which is why it is the candidate ground truth for comparing the gap score
+    against a trivial dropout-counting baseline.
+
+    Per frame, each hand detected in `degraded` is compared with the nearest
+    hand detected in `reference` (so a left/right label swap is not scored as
+    a huge error); the error is the mean over the 21 landmarks of the image-
+    plane (x, y) distance, divided by that reference hand's bounding-box
+    diagonal. Frames where either side detected no hand contribute nothing
+    here; dropout is measured separately by `landmark_quality_ground_truth`.
+
+    Returns:
+        hand_landmark_error: mean error over all compared hands (NaN if none).
+        n_hand_comparisons: number of (frame, degraded hand) pairs compared.
+        frames_compared_fraction: fraction of frames with a hand on both sides.
+    """
+    from ..normalization import NORMALIZATION_KEY, denormalize_states
+    from ..rollout import PERCEPTION_FEATURE_LAYOUT
+
+    if reference.states.shape != degraded.states.shape:
+        raise ValueError(
+            "paired_landmark_error needs the same frames on both sides; got shapes "
+            f"{reference.states.shape} and {degraded.states.shape}"
+        )
+
+    def _raw(r: Rollout) -> np.ndarray:
+        params = r.metadata.get(NORMALIZATION_KEY)
+        return denormalize_states(r.states, params) if params else np.asarray(r.states, dtype=np.float64)
+
+    def _hands(states: np.ndarray, presence: np.ndarray) -> list[list[np.ndarray]]:
+        """Per frame, the (21, 2) x/y arrays of the hands present."""
+        per_frame: list[list[np.ndarray]] = [[] for _ in range(states.shape[0])]
+        for name in ("left_hand", "right_hand"):
+            g = PERCEPTION_FEATURE_LAYOUT[name]
+            block = states[:, g["start"]:g["start"] + 63].reshape(-1, 21, 3)[:, :, :2]
+            present = presence[:, g["start"]] > 0
+            for t in np.flatnonzero(present):
+                per_frame[t].append(block[t])
+        return per_frame
+
+    ref = _hands(_raw(reference), np.asarray(reference.presence_mask))
+    deg = _hands(_raw(degraded), np.asarray(degraded.presence_mask))
+
+    errors: list[float] = []
+    frames_compared = 0
+    for ref_t, deg_t in zip(ref, deg):
+        sized = [(h, float(np.linalg.norm(h.max(axis=0) - h.min(axis=0)))) for h in ref_t]
+        sized = [(h, d) for h, d in sized if d > 1e-9]
+        if not sized or not deg_t:
+            continue
+        frames_compared += 1
+        for d_hand in deg_t:
+            errors.append(min(np.linalg.norm(d_hand - h, axis=1).mean() / d for h, d in sized))
+
+    n = reference.states.shape[0]
+    return {
+        "hand_landmark_error": float(np.mean(errors)) if errors else float("nan"),
+        "n_hand_comparisons": float(len(errors)),
+        "frames_compared_fraction": frames_compared / n if n else float("nan"),
     }

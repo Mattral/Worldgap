@@ -22,6 +22,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Run-2 tooling.** `worldgap.data.degradations.ImageDegradation`: graded,
+  deterministic image degradations (`darken`, `downscale`, `blur`, `noise`)
+  for software-degraded conditions built from real clean recordings, so every
+  condition reuses the same frames. `extract_rollout_from_video(...,
+  frame_transform=...)` applies one before MediaPipe and records it in
+  `metadata["frame_transform"]`. `paired_landmark_error(reference, degraded)`:
+  distance from the same frame's clean detection, in hand sizes, with
+  left/right label swaps not counted as error. It measures tracking quality,
+  which the presence mask (an input to the world model) does not contain.
+  `scripts/run_v1_pilot.py` measures dropout, landmark error and the trivial
+  presence baselines per severity, and by design computes no gap scores.
+  `tests/test_degradations.py` (12 tests).
 - **`scripts/record_v1_session.py`**, the guided capture script run 1 was
   recorded with (previously only in temporary storage, so run 1 was not
   reproducible). It prompts the gesture routine on screen, saves raw
