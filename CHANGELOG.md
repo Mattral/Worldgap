@@ -4,6 +4,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+> **Upgrading from 0.2.0: the same video now yields different states.**
+> 0.2.0's loaders (`extract_rollout_from_video`, `extract_rollout_from_frames`,
+> `extract_static_pose_rollouts`) return **unnormalized** image coordinates.
+> From the next release they **normalize by default**, anchoring the pose at
+> the **shoulder midpoint** (`normalization_scheme="shoulder_midpoint"`), and
+> record the scheme in `metadata["normalization"]`. Consequences:
+> - Rollout stores, checkpoints and gap scores produced with 0.2.0 are **not
+>   comparable** with ones produced now, even from identical recordings.
+> - `GapAnalyzer` refuses to train on or compare rollouts with different
+>   schemes, and treats unnormalized vs. normalized as different.
+> - To bring 0.2.0 stores forward, either re-extract from the original
+>   recordings, or apply `normalize_rollout(r, scheme)` to each saved
+>   (unnormalized) rollout: normalization is per frame, so this gives exactly
+>   the re-extracted states. Then re-fit. Use `hip_midpoint` only if every
+>   rollout in the study uses it.
+
 ### Added
 
 - **`docs/v1_first_run_results.md`: the first real V1 run, result null.** 33
@@ -66,6 +82,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Default pose anchor is now the shoulder midpoint** (a documented
+  deviation from spec 5.2). Normalization has two named schemes:
+  `shoulder_midpoint` (default) and the spec-faithful `hip_midpoint`. In run
+  1's clean recordings MediaPipe's mean visibility was 0.005 for the hips and
+  0.999 for the shoulders, so a hip anchor was an extrapolation. The scheme is
+  a per-study choice: every loader takes `normalization_scheme=`,
+  `run_v1_real_data.py` takes `--normalization` and records it in a new
+  `study_settings.json` before any score, and nothing ever switches anchors per
+  frame or on visibility.
+- **`GapAnalyzer` refuses to mix normalization schemes.** `fit()` rejects
+  training rollouts with different schemes; `compute_gap()` rejects source and
+  target rollouts whose schemes differ from each other or from the training
+  scheme (normalized vs. raw counts as different), in the same spirit as the
+  temporal-provenance guard. The training scheme is saved in checkpoints
+  (older checkpoints load with it unknown, and only the source/target check
+  applies). The refusal names the fix: re-extract with one scheme, or `normalize_rollout()` saved unnormalized rollouts. `tests/test_normalization_scheme_guard.py` (9 tests).
 - `docs/v1_first_run_results.md`: the claim that no gap score could have
   correlated with run 1's ground truth was too strong for two similar
   standard deviations (3.44 vs 3.02 pp). Now: take-to-take noise comparable

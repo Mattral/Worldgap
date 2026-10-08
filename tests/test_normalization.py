@@ -19,6 +19,7 @@ from worldgap.config import EncoderConfig, TrainingConfig, WorldModelConfig
 from worldgap.data.index import RolloutIndex
 from worldgap.data.normalization import (
     NORMALIZATION_KEY,
+    SCHEMES,
     denormalize_states,
     is_normalized,
     normalize_perception_states,
@@ -93,14 +94,30 @@ def _tiny_analyzer(train: list[Rollout]) -> GapAnalyzer:
 # -- the property ------------------------------------------------------------
 
 
-def test_translated_and_scaled_rollout_normalizes_to_the_same_states():
+@pytest.mark.parametrize("scheme", sorted(SCHEMES))
+def test_translated_and_scaled_rollout_normalizes_to_the_same_states(scheme):
     raw = _pack(*_scene())
     moved = _pack(*_transformed(*_scene()))
     assert not np.allclose(raw, moved)  # the inputs really differ
     ones = np.ones_like(raw)
-    a, _ = normalize_perception_states(raw, ones)
-    b, _ = normalize_perception_states(moved, ones)
+    a, _ = normalize_perception_states(raw, ones, scheme)
+    b, _ = normalize_perception_states(moved, ones, scheme)
     np.testing.assert_allclose(a, b, atol=1e-9)
+
+
+@pytest.mark.parametrize("scheme", sorted(SCHEMES))
+def test_anchor_never_switches_on_visibility(scheme):
+    """The scheme is fixed per study: hips invisible in some frames (as in
+    seated webcam framing) must not move the anchor for those frames."""
+    pose, vis, hands = _scene()
+    vis = vis.copy()
+    vis[::2, 23:25] = 0.0  # hips "out of frame" in every other frame
+    raw = _pack(pose, vis, hands)
+    _states, params = normalize_perception_states(raw, np.ones_like(raw), scheme)
+    a, b = SCHEMES[scheme]
+    anchor = (pose[:, a] + pose[:, b]) / 2
+    np.testing.assert_allclose(np.asarray(params["per_frame"]["pose_origin"]), anchor, atol=1e-12)
+    assert params["scheme"] == scheme  # one scheme, not a per-frame list
 
 
 def test_translated_and_scaled_rollout_produces_the_same_encoding():
@@ -161,11 +178,15 @@ def test_real_video_loader_path_is_invariant(tmp_path: Path):
 # -- correctness of the transform ------------------------------------------
 
 
-def test_reference_points_land_where_spec_5_2_says():
-    states, _ = normalize_perception_states(_pack(*_scene()), np.ones((40, PERCEPTION_STATE_DIM)))
+@pytest.mark.parametrize("scheme, anchor", [("shoulder_midpoint", (11, 12)), ("hip_midpoint", (23, 24))])
+def test_reference_points_land_where_the_scheme_says(scheme, anchor):
+    states, params = normalize_perception_states(
+        _pack(*_scene()), np.ones((40, PERCEPTION_STATE_DIM)), scheme
+    )
+    assert params["scheme"] == scheme
     pose = states[:, 0:132].reshape(40, 33, 4)[:, :, :3]
-    hip_mid = (pose[:, 23] + pose[:, 24]) / 2
-    np.testing.assert_allclose(hip_mid, 0.0, atol=1e-9)
+    a, b = anchor
+    np.testing.assert_allclose((pose[:, a] + pose[:, b]) / 2, 0.0, atol=1e-9)
     np.testing.assert_allclose(np.linalg.norm(pose[:, 11, :2] - pose[:, 12, :2], axis=1), 1.0, atol=1e-9)
     for start in (132, 195):
         hand = states[:, start:start + 63].reshape(40, 21, 3)

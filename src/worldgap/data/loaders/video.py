@@ -28,7 +28,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..normalization import normalize_rollout
+from ..normalization import DEFAULT_SCHEME, normalize_rollout
 from ..rollout import (
     PERCEPTION_STATE_DIM,
     TEMPORAL_PROVENANCE_KEY,
@@ -64,6 +64,7 @@ def extract_rollout_from_video(
     max_frames: int | None = None,
     stride: int = 1,
     use_video_mode: bool = True,
+    normalization_scheme: str = DEFAULT_SCHEME,
 ) -> Rollout:
     """Decodes `video_path` and runs `landmarker` over its frames in order.
 
@@ -80,6 +81,9 @@ def extract_rollout_from_video(
             deployment behaves. Falls back to `detect()` automatically. A
             VIDEO-mode landmarker must be fresh for each file: timestamps
             restart at 0 per video and MediaPipe requires them to increase.
+        normalization_scheme: pose anchor for landmark normalization (see
+            `worldgap.data.normalization`). Fixed per study: every rollout
+            that will be compared must use the same one.
 
     Frames where nothing was detected are kept with `presence_mask=False`, never
     dropped or interpolated -- spec 8.1's ground truth *is* that dropout, so
@@ -163,7 +167,8 @@ def extract_rollout_from_video(
                 "native_fps": float(native_fps),
                 "stride": stride,
             },
-        )
+        ),
+        normalization_scheme,
     )
 
 

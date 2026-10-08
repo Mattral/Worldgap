@@ -121,8 +121,15 @@ For the two real-data paths, see [`docs/v2_actuation_runbook.md`](docs/v2_actuat
 (runs today, reproducible) and [`docs/v1_real_data_runbook.md`](docs/v1_real_data_runbook.md)
 (needs recordings).
 
+**Upgrading from 0.2.0 (unreleased changes on `main`):** the perception loaders
+now normalize landmarks by default with a shoulder anchor, so **the same video
+yields different states** than in 0.2.0. Stores, checkpoints and gap scores from
+0.2.0 are not comparable with new ones, and `GapAnalyzer` refuses to mix them.
+Re-extract, or apply `normalize_rollout()` to saved unnormalized rollouts, then
+re-fit. See [`CHANGELOG.md`](CHANGELOG.md).
+
 **Upgrading from 0.1.0:** saved checkpoints will not load (the predictor changed) —
-retrain. See [`CHANGELOG.md`](CHANGELOG.md).
+retrain.
 
 ## CLI
 

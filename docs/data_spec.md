@@ -19,7 +19,9 @@ Total: 258. `PERCEPTION_STATE_DIM` in `rollout.py` enforces this.
 
 ## Normalization (spec 5.2)
 
-- Pose: translate relative to hip-midpoint, scale by shoulder width.
+- Pose: translate relative to the anchor midpoint of the study's scheme
+  (default `shoulder_midpoint`, landmarks 11/12; spec-faithful
+  `hip_midpoint`, 23/24), scale by shoulder width.
 - Each hand: translate relative to wrist, scale by hand bounding-box diagonal.
 - Store the normalization parameters in `metadata`, not just the normalized
   values — raw values must stay recoverable.
@@ -31,8 +33,14 @@ perception rollouts. Parameters are per frame, in
 `pose_scale`, `left_hand_origin`, ...); `split_into_windows` slices them to
 each window. Visibility and presence are never changed. Hand-built synthetic
 rollouts are not normalized automatically: call `normalize_rollout()` if you
-want them comparable with real ones. Caveat: when the hips are out of frame,
-the hip-midpoint origin is MediaPipe's extrapolation (spec 5.2 note).
+want them comparable with real ones.
+
+**One scheme per study.** The default anchors on the shoulders because, in
+seated webcam framing, MediaPipe barely sees the hips (mean visibility 0.005
+vs. 0.999 for the shoulders in the first run). The scheme is recorded in
+`metadata["normalization"]["scheme"]`, never switched per frame, and
+`GapAnalyzer` refuses to train on or compare rollouts whose schemes differ
+(spec 5.2 deviation note).
 
 ## Storage (spec 5.3)
 

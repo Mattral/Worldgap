@@ -15,6 +15,7 @@ below are about behaviour, not just absence of exceptions.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -160,6 +161,8 @@ def test_script_runs_end_to_end_and_writes_every_artifact(recordings, tmp_path, 
 
     # every artifact the runbook promises actually exists
     assert (out / "preregistered_conditions.json").exists()
+    settings = json.loads((out / "study_settings.json").read_text())
+    assert settings["normalization_scheme"] == "shoulder_midpoint"  # the default, recorded
     assert (out / "ground_truth.json").exists()
     assert (out / "checkpoint.pt").exists()
     assert (out / "v1_report.html").exists()

@@ -143,3 +143,13 @@ condition set had little power to show a correlation either way.
 Re-scoring these same recordings after the normalization fix would be a
 follow-up analysis prompted by the result above, and must be labelled as such.
 It is not a substitute for a fresh pre-registered run.
+
+**Run 1's saved stores are unnormalized** (raw image coordinates), so they
+cannot be fed to the current analyzer as they are; it refuses to mix them with
+normalized rollouts. A re-score has to normalize first, in one of two
+equivalent ways: re-extract from the recordings with the chosen scheme, or
+apply `normalize_rollout(r, scheme)` to each saved rollout. Normalization is
+per frame, so these agree exactly. Checked on `clean/take0.mp4` with the
+shoulder scheme: all 46 windows matched re-extraction with maximum state
+difference 0.0. Either way it is a follow-up analysis: its numbers are not
+comparable with the pre-registered ρ = −0.224 above.

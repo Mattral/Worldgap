@@ -82,8 +82,12 @@ at the end of a phase.
       `data/normalization.py`, applied by every real-data loader, with
       per-frame parameters in metadata. `tests/test_normalization.py` checks
       that translating or scaling a rollout as a whole leaves its encoding
-      unchanged. Open question for run 2: the hip-midpoint origin is
-      extrapolated when hips are out of frame (spec 5.2 note).
+      unchanged.
+- [x] **Pose anchor per study** — default scheme `shoulder_midpoint`
+      (hips had visibility 0.005 vs. shoulders 0.999 in run 1), spec-faithful
+      `hip_midpoint` kept; a documented deviation from spec 5.2. The scheme is
+      fixed per study and recorded; `GapAnalyzer` refuses to train on or
+      compare mixed schemes (`tests/test_normalization_scheme_guard.py`).
 
 ## Phase 3 — Divergence module
 - [x] Fréchet distance with Ledoit-Wolf shrinkage + complex-component handling

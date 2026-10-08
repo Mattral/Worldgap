@@ -34,7 +34,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..normalization import normalize_rollout
+from ..normalization import DEFAULT_SCHEME, normalize_rollout
 from ..rollout import (
     PERCEPTION_FEATURE_LAYOUT,
     PERCEPTION_STATE_DIM,
@@ -114,6 +114,7 @@ def extract_rollout_from_frames(
     source: str = "real",
     metadata: dict | None = None,
     temporal_provenance: str = "video",
+    normalization_scheme: str = DEFAULT_SCHEME,
 ) -> Rollout:
     """Runs `landmarker` (an already-constructed object with a `.detect(image)`
     method -- typically `mediapipe.tasks.python.vision.HolisticLandmarker`,
@@ -172,5 +173,6 @@ def extract_rollout_from_frames(
             presence_mask=presence_mask.astype(np.float64),
             timestamps_ms=timestamps_ms,
             metadata={**(metadata or {}), TEMPORAL_PROVENANCE_KEY: temporal_provenance},
-        )
+        ),
+        normalization_scheme,
     )
