@@ -94,6 +94,9 @@ at the end of a phase.
 - [x] `ValidationHarness` with enforced pre-registration (anti-cherry-picking,
       spec 8.3) — tested
 - [x] Spearman + bootstrap CI (spec 8.2) — tested
+- [x] Guided capture script, `scripts/record_v1_session.py` (run 1's
+      recordings were made with it; it records the camera's real frame rate,
+      which every dropout duration depends on). Tested.
 - [x] First V1 validation run against real MediaPipe ground truth — done
       2026-10-01, **null**: ρ = −0.224, 95% CI [−0.810, 0.539] across 10
       pre-registered conditions. Ground truth had almost no dynamic range
