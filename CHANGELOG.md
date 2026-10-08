@@ -22,6 +22,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`scripts/record_v1_session.py`**, the guided capture script run 1 was
+  recorded with (previously only in temporary storage, so run 1 was not
+  reproducible). It prompts the gesture routine on screen, saves raw
+  unmirrored frames into the runbook's folder layout (`clean` first and
+  last), and writes each file with the frame rate the camera actually
+  delivered, rewriting it when that differs from the nominal rate by more than
+  0.5%. That number matters: `extract_rollout_from_video` converts frames to
+  seconds with it, so `longest_dropout_run_s` inherits any error. Run 1's
+  camera delivered 29.99–30.01 fps (no take needed correcting), now recorded
+  in `docs/v1_first_run_results.md`. `tests/test_record_v1_session.py` (6
+  tests, fake camera and clock) includes an end-to-end check that a 3 s take
+  from a camera delivering 20 fps while claiming 30 is measured as a 3 s
+  dropout, not 2 s.
+
 - **`docs/v1_first_run_results.md`: the first real V1 run, result null.** 33
   webcam recordings (one subject, 11 folders × 3 takes), 10 pre-registered
   conditions. Spearman ρ = −0.224 between the Fréchet gap score and MediaPipe

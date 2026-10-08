@@ -64,6 +64,20 @@ with a `.task` name. The preflight catches that too.
 
 ## Step 1 — record
 
+The easiest way is the guided capture script, which prompts the gestures on
+screen, writes the folder layout below, and stamps each file with the frame
+rate the camera **actually** delivered (webcams often slow down in low light
+while still reporting their nominal rate, and every duration downstream,
+including `longest_dropout_run_s`, is computed from that number):
+
+```bash
+python scripts/record_v1_session.py --test      # 10 s take + MediaPipe check first
+python scripts/record_v1_session.py --session   # 33 takes, clean first and last; resumable
+```
+
+If you record with another tool instead, make sure each file's frame rate is
+the rate the camera really delivered.
+
 Directory layout. One subfolder per capture condition; `clean/` is the source
 domain, everything else is a target condition:
 

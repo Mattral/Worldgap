@@ -20,7 +20,9 @@ Section 14, that is the result. It is not re-run with different conditions.
 | | |
 |---|---|
 | Subject | One person (the author), one hand gesturing, the other out of frame |
-| Camera | One built-in webcam, 640×480 at 30 fps, fixed except in `camera_shake` |
+| Camera | One built-in webcam, 640×480, fixed except in `camera_shake` |
+| Frame rate | Camera **delivered 29.99–30.01 fps** in every take (measured by `scripts/record_v1_session.py` while recording); all 33 files written at 30.0 fps, 2250–2251 frames per 75 s take. No take needed a rate correction, so timestamps (and `longest_dropout_run_s`) are off by at most ~0.03% |
+| Capture | `scripts/record_v1_session.py` (on-screen prompts; saves raw, unmirrored frames with the measured rate) |
 | Routine | `fist` → `palm` → `stop` → `like`, prompted on screen, 2 s each (1 s in `fast_motion`), repeated for 75 s per take |
 | Takes | 11 folders × 3 takes = 33 recordings (≈41 min). `clean`: 2 takes first, 1 take last |
 | `low_resolution` | Downscaled to 320×240 at capture time |
