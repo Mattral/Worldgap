@@ -47,6 +47,7 @@ from worldgap.data.loaders.video import (
     list_videos,
     split_into_windows,
 )
+from worldgap.data.normalization import DEFAULT_SCHEME, SCHEMES
 from worldgap.data.rollout import PERCEPTION_STATE_DIM
 from worldgap.report import ReportEntry, generate_report
 from worldgap.validation.harness import ConditionResult, ValidationHarness
@@ -99,6 +100,7 @@ def extract_condition(
     window_frames: int,
     max_frames: int | None,
     stride: int,
+    normalization_scheme: str = DEFAULT_SCHEME,
 ) -> tuple[list, list[dict]]:
     """Returns (windowed rollouts, per-recording ground-truth dicts).
 
@@ -122,6 +124,7 @@ def extract_condition(
                 condition={"capture_condition": name},
                 max_frames=max_frames,
                 stride=stride,
+                normalization_scheme=normalization_scheme,
             )
         finally:
             close = getattr(landmarker, "close", None)
@@ -171,6 +174,13 @@ def main() -> int:
     parser.add_argument("--max-frames", type=int, default=None)
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument(
+        "--normalization",
+        choices=sorted(SCHEMES),
+        default=DEFAULT_SCHEME,
+        help="pose anchor for landmark normalization; fixed for the whole study and "
+        "recorded in study_settings.json before any score is computed",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="discover recordings and print the plan without loading MediaPipe",
@@ -216,10 +226,25 @@ def main() -> int:
     (args.out / "preregistered_conditions.json").write_text(
         json.dumps(pre_registered, indent=2)
     )
+    # The normalization scheme is part of the study design, so it is fixed
+    # and recorded alongside the conditions, before any score exists.
+    (args.out / "study_settings.json").write_text(
+        json.dumps(
+            {
+                "normalization_scheme": args.normalization,
+                "window_frames": args.window_frames,
+                "stride": args.stride,
+                "max_frames": args.max_frames,
+                "epochs": args.epochs,
+            },
+            indent=2,
+        )
+    )
     if len(pre_registered) >= 10:
         harness.pre_register_conditions(pre_registered)
     print(f"\nPre-registered {len(pre_registered)} conditions -> "
           f"{args.out / 'preregistered_conditions.json'}")
+    print(f"Normalization scheme: {args.normalization} (fixed for this study)")
 
     print("\nExtracting landmarks")
     def make_landmarker():
@@ -230,7 +255,8 @@ def main() -> int:
     for name, videos in conditions.items():
         print(f"  [{name}]")
         rollouts, gts = extract_condition(
-            name, videos, make_landmarker, args.window_frames, args.max_frames, args.stride
+            name, videos, make_landmarker, args.window_frames, args.max_frames, args.stride,
+            normalization_scheme=args.normalization,
         )
         store_rollouts[name] = rollouts
         all_ground_truth[name] = gts

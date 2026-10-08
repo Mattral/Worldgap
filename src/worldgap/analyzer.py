@@ -18,6 +18,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from .config import GapConfig
+from .data.normalization import require_single_scheme
 from .data.rollout import Rollout
 from .metrics.frechet import FrechetResult, frechet_distance
 from .metrics.mmd import MMDResult, mmd_squared
@@ -134,6 +135,11 @@ class GapAnalyzer:
             weight_decay=config.training.weight_decay,
         )
         self._fitted = False
+        # Landmark normalization scheme the model was trained on (None = the
+        # training rollouts were not normalized, e.g. actuation). Unknown only
+        # for checkpoints written before this was recorded.
+        self._normalization_scheme: str | None = None
+        self._normalization_scheme_known = False
 
     def _build_encoder(self) -> torch.nn.Module:
         if self.config.modality == "perception":
@@ -143,6 +149,9 @@ class GapAnalyzer:
         raise ValueError(f"unknown modality: {self.config.modality!r}")  # pragma: no cover — GapConfig already validates this
 
     def fit(self, rollouts: list[Rollout]) -> dict:
+        # One normalization scheme per study (worldgap.data.normalization):
+        # a model trained across anchors would learn the anchor change.
+        scheme = require_single_scheme(rollouts, "train on")
         torch.manual_seed(self.config.training.seed)
         wm_cfg = self.config.world_model
         dataset = _WindowDataset(rollouts, wm_cfg.context_frames, wm_cfg.predict_frames)
@@ -216,6 +225,8 @@ class GapAnalyzer:
                 losses.append(loss.item())
 
         self._fitted = True
+        self._normalization_scheme = scheme
+        self._normalization_scheme_known = True
         return {
             "final_loss": losses[-1] if losses else float("nan"),
             "n_steps": len(losses),
@@ -241,6 +252,19 @@ class GapAnalyzer:
             raise RuntimeError(
                 "call fit() before compute_gap() — otherwise the world model has "
                 "random, untrained weights and any gap number is meaningless"
+            )
+        # Same spirit as the temporal-provenance guard: refuse rather than
+        # return a number that silently measures something else. A gap across
+        # normalization schemes includes the change of anchor itself.
+        scheme = require_single_scheme(
+            list(source_rollouts) + list(target_rollouts), "compare"
+        )
+        if self._normalization_scheme_known and scheme != self._normalization_scheme:
+            raise ValueError(
+                f"refusing to compare rollouts with normalization scheme "
+                f"{scheme or 'unnormalized'!r}: this model was trained on "
+                f"{self._normalization_scheme or 'unnormalized'!r}. The normalization "
+                "scheme is fixed per study."
             )
         source_latents = self._rollouts_to_summary_latents(source_rollouts)
         target_latents = self._rollouts_to_summary_latents(target_rollouts)
@@ -281,6 +305,8 @@ class GapAnalyzer:
                 "optimizer_state_dict": self.optimizer.state_dict(),
                 "config": self.config,
                 "fitted": self._fitted,
+                "normalization_scheme": self._normalization_scheme,
+                "normalization_scheme_known": self._normalization_scheme_known,
             },
             path,
         )
@@ -298,4 +324,7 @@ class GapAnalyzer:
         analyzer.model.load_state_dict(checkpoint["model_state_dict"])
         analyzer.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         analyzer._fitted = checkpoint["fitted"]
+        # absent in checkpoints written before the scheme was recorded
+        analyzer._normalization_scheme = checkpoint.get("normalization_scheme")
+        analyzer._normalization_scheme_known = checkpoint.get("normalization_scheme_known", False)
         return analyzer

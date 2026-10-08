@@ -141,11 +141,19 @@ python scripts/run_v1_real_data.py \
 On CPU, expect a few minutes per minute of footage for extraction, plus a
 couple of minutes to fit. A GPU is not needed at this scale.
 
+Landmarks are normalized with the default pose anchor, the shoulder midpoint.
+If the hips are clearly in frame for the whole study, `--normalization
+hip_midpoint` uses the spec 5.2 anchor instead. Choose **once, before
+recording the study**: the scheme is written to `study_settings.json` with the
+pre-registration, and worldgap refuses to compare rollouts whose schemes
+differ.
+
 Outputs under `./v1_run/`:
 
 | File | What it is |
 |---|---|
 | `preregistered_conditions.json` | Written **before** any score is computed (§8.3) |
+| `study_settings.json` | Normalization scheme and run settings, written alongside the pre-registration |
 | `stores/<condition>/` | Self-contained rollout stores — reusable by the CLI |
 | `ground_truth.json` | MediaPipe's own quality signals, per recording |
 | `checkpoint.pt` | The fitted world model |

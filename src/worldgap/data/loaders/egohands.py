@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..normalization import DEFAULT_SCHEME
 from ..rollout import Rollout
 from .mediapipe_extract import extract_rollout_from_frames as _extract_rollout_from_frames
 
@@ -42,10 +43,16 @@ def extract_rollout_from_frames(
     landmarker,
     frame_rate_hz: float = 30.0,
     condition: dict | None = None,
+    normalization_scheme: str = DEFAULT_SCHEME,
 ) -> Rollout:
     """See hagrid.py's `extract_rollout_from_frames` docstring — same shared
     implementation, same real-data/model-file caveat.
     """
     return _extract_rollout_from_frames(
-        frame_paths, landmarker, frame_rate_hz=frame_rate_hz, condition=condition, source="real"
+        frame_paths,
+        landmarker,
+        frame_rate_hz=frame_rate_hz,
+        condition=condition,
+        source="real",
+        normalization_scheme=normalization_scheme,
     )

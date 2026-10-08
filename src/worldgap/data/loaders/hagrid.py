@@ -36,7 +36,7 @@ from __future__ import annotations
 import warnings
 from pathlib import Path
 
-from ..normalization import normalize_rollout
+from ..normalization import DEFAULT_SCHEME, normalize_rollout
 from ..rollout import TEMPORAL_PROVENANCE_KEY, Rollout
 from .mediapipe_extract import holistic_result_to_feature_vector
 
@@ -114,6 +114,7 @@ def extract_static_pose_rollouts(
     landmarker,
     condition: dict | None = None,
     metadata: dict | None = None,
+    normalization_scheme: str = DEFAULT_SCHEME,
 ) -> list[Rollout]:
     """Extracts one T=1 `Rollout` per still image.
 
@@ -170,7 +171,8 @@ def extract_static_pose_rollouts(
                         TEMPORAL_PROVENANCE_KEY: "static_pose",
                         "gesture": path.parent.name,
                     },
-                )
+                ),
+                normalization_scheme,
             )
         )
     return rollouts
