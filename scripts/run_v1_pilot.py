@@ -87,9 +87,22 @@ def main() -> int:
     ap.add_argument("--video", type=Path, default=Path("recordings/clean/take0.mp4"))
     ap.add_argument("--model", type=Path, default=Path("models/holistic_landmarker.task"))
     ap.add_argument("--max-frames", type=int, default=900, help="pilot on the first N frames")
-    ap.add_argument("--kinds", nargs="*", default=list(DEFAULT_GRID), choices=list(DEFAULT_GRID))
+    ap.add_argument("--kinds", nargs="*", default=None, choices=list(DEFAULT_GRID))
+    ap.add_argument(
+        "--grid",
+        type=json.loads,
+        default=None,
+        help='custom severities as JSON, e.g. \'{"darken": [0.07, 0.06]}\' (refining a cliff)',
+    )
     ap.add_argument("--out", type=Path, default=Path("v1_pilot/pilot.json"))
     args = ap.parse_args()
+    grid = args.grid if args.grid is not None else DEFAULT_GRID
+    if args.kinds is not None:
+        grid = {k: grid[k] for k in args.kinds}
+    for kind in grid:
+        if kind not in DEFAULT_GRID:
+            print(f"ERROR: unknown degradation {kind!r}")
+            return 1
 
     if not args.video.exists():
         print(f"ERROR: {args.video} not found")
@@ -108,8 +121,8 @@ def main() -> int:
     }]
     print(f"  {'none':<10} {'-':>7}  dropout {rows[0]['hand_dropout_rate']:6.1%}")
 
-    for kind in args.kinds:
-        for severity in DEFAULT_GRID[kind]:
+    for kind, severities in grid.items():
+        for severity in severities:
             d = ImageDegradation(kind, severity)
             rollout = extract(args.video, args.model, args.max_frames, d)
             row = {
@@ -138,7 +151,7 @@ def main() -> int:
         "pilot": True,
         "video": str(args.video),
         "max_frames": args.max_frames,
-        "grid": {k: DEFAULT_GRID[k] for k in args.kinds},
+        "grid": grid,
         "rows": rows,
         "dropout_baseline_vs_landmark_error": baseline_vs_error,
         "seconds": round(time.perf_counter() - t0, 1),

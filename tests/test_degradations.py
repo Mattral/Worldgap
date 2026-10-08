@@ -191,9 +191,9 @@ def test_pilot_script_reports_ground_truth_and_baselines_without_gap_scores(tmp_
             pass
 
     monkeypatch.setattr(pilot, "build_landmarker", lambda _m: _Fake())
-    monkeypatch.setattr(pilot, "DEFAULT_GRID", {"darken": [0.5, 0.1]})
     out = tmp_path / "pilot.json"
-    monkeypatch.setattr(sys, "argv", ["run_v1_pilot.py", "--video", str(video), "--kinds", "darken",
+    monkeypatch.setattr(sys, "argv", ["run_v1_pilot.py", "--video", str(video),
+                                      "--grid", json.dumps({"darken": [0.5, 0.1]}),
                                       "--max-frames", "12", "--out", str(out)])
     assert pilot.main() == 0
     report = json.loads(out.read_text())
