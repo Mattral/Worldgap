@@ -66,6 +66,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `docs/v1_first_run_results.md`: the claim that no gap score could have
+  correlated with run 1's ground truth was too strong for two similar
+  standard deviations (3.44 vs 3.02 pp). Now: take-to-take noise comparable
+  to the between-condition signal and ~3 recordings per condition, so the
+  study had little power in either direction and its null is closer to
+  uninformative than to evidence against the gap score. The correction is
+  marked in place.
 - Project URLs (`pyproject.toml`, README, notebook) use the repository's real
   casing, `Mattral/Worldgap`.
 - Docs brought up to date with 0.2.0. README: PyPI install, CI badge, the V1

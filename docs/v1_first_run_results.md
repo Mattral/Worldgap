@@ -88,11 +88,18 @@ much as conditions disagreed with each other:
 
 `backlit` takes ran 5.6%, 25.7% and 0.9%; `hand_partial_occlusion` 2.3%,
 20.3% and 3.5%. A single take dominates each of the two highest condition
-means. When take-to-take noise is as large as the between-condition effect,
-no gap score could correlate with this ground truth, however good the model.
-That is a property of the **condition set**, not of the code: these
-conditions mostly did not make MediaPipe fail. With n = 10 conditions the test
-also has little power; the CI spans 1.35 units of ρ.
+means. Take-to-take noise was comparable to the between-condition signal,
+and each condition rests on only ~3 independent recordings, so the study had
+**little power to detect a relationship in either direction**. A null from it
+is closer to *uninformative* than to evidence against the gap score. That is
+a property of the **condition set**, not of the code: these conditions mostly
+did not make MediaPipe fail. With n = 10 conditions the CI also spans 1.35
+units of ρ.
+
+*Corrected 2026-10-08:* an earlier version of this paragraph said that no gap
+score could correlate with this ground truth, however good the model. Two
+similar standard deviations (3.44 vs 3.02 pp) do not support "could not";
+they support "had little power to".
 
 ### 2. Code finding: spec 5.2 normalization was not implemented
 
@@ -122,7 +129,7 @@ score that tracks MediaPipe hand dropout.
 **Does not:** say anything about other people, cameras or devices; and it does
 not test the *specified* design, since normalization was missing. It is also
 not evidence that the approach fails in general. Given finding 1, this
-condition set could not have shown a correlation either way.
+condition set had little power to show a correlation either way.
 
 ## Next, in order
 
