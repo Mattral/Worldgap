@@ -5,6 +5,26 @@ recording exists**. Its git commit is its identity. Nothing below may be
 changed after run-2 data is recorded; any departure during the run is
 reported in the results as a deviation from this document, not edited in.
 
+### Amendments
+
+**Amendment 1 — 2026-10-08, made before any run-2 data existed.** The
+original text is in git history (merge `c153902`). Amended passages are marked
+*[A1]*.
+
+- **Why:** the original lacked a power analysis for Rule B, and its §8.4 read
+  every Rule B failure as "no claim of added value", including failures where
+  the test simply had little chance to pass. Interpreting those afterwards
+  would look like an excuse; fixing the reading now does not.
+- **§8.4:** a Rule B failure with ρ_gap ≥ 0.80 now reads *"underpowered to
+  settle it"*, not *"no added value"*. The original row was: "pass | fail |
+  The gap score tracks degradation, but not demonstrably better than counting
+  dropouts. No claim of added value."
+- **§13:** adds a Rule B power table (with its assumptions, so it can be
+  re-run) and a limitation: the 24 conditions are 4 factors × 6 ordered
+  severities, not 24 exchangeable draws.
+- **§12:** adds the testing protocol for the analysis script before run-2
+  data exists (synthetic data, and run 1's footage in blind mode).
+
 Run 1 (`v1_first_run_results.md`) was null and underpowered: the conditions
 barely made MediaPipe fail, take-to-take noise was comparable to the
 between-condition signal, and spec 5.2 normalization was missing. Run 2 is
@@ -233,7 +253,8 @@ valid resamples is reported.
 
 For reference, in the pilot ρ_base was **+0.56** over these 24 conditions. With 24
 conditions, passing Rule B is expected to need ρ_gap well above that. This is
-stated in advance so a near-miss is not later read as a success.
+stated in advance so a near-miss is not later read as a success. *[A1]* The
+estimated power is in §13: about 17–51% at ρ_gap = 0.80 and 54–98% at 0.90.
 
 ### 8.3 Secondary analyses (descriptive; no decision attached)
 
@@ -255,8 +276,12 @@ stated in advance so a near-miss is not later read as a success.
 | Rule A | Rule B | What will be said |
 |---|---|---|
 | pass | pass | On one subject and one camera, across 24 pre-registered software-degraded conditions, the gap score ranked MediaPipe landmark degradation, and did so better than counting dropouts. Not "validated" in general. |
-| pass | fail | The gap score tracks degradation, but not demonstrably better than counting dropouts. No claim of added value. |
+| pass | fail, **ρ_gap ≥ 0.80** *[A1]* | The gap score tracks degradation. Whether it adds value over counting dropouts is **not settled: the test was underpowered** to detect an advantage (§13, power ≈ 17–51% at ρ_gap = 0.80). This is **not** evidence of no added value. |
+| pass | fail, **ρ_gap < 0.80** *[A1]* | The gap score tracks degradation, but not demonstrably better than counting dropouts. No claim of added value. |
 | fail | — | The gap score did not track landmark degradation across these conditions. Reported as a negative result. |
+
+*[A1]* ρ_gap here is the point estimate of §8.1. The 0.80 threshold is fixed
+now, before data, from the §13 power table; it is not moved afterwards.
 
 None of these outcomes is generalised beyond one person, one camera and
 simulated degradations of real footage.
@@ -310,6 +335,13 @@ load on the machine; run 2 is therefore cached and run overnight.
 - The run-2 analysis script, which implements exactly §5–§8 including caching,
   is committed **before any run-2 recording is processed**. Its commit hash and
   `study_settings.json` are recorded with the results.
+- *[A1]* **Testing before run-2 data exists.** The analysis script
+  (`scripts/run_v1_run2.py`) is tested end to end in CI on synthetic videos,
+  and on run 1's footage in **blind mode** (`--blind`). Blind mode runs every
+  stage (extraction, caching, fitting, gap scores, both rules, secondary
+  analyses) but writes only a health report and discards every score and
+  correlation unread. A non-blind run on real footage, which would preview the
+  result for these exact conditions, is not made before run 2.
 - Recordings stay on the recording machine (gitignored; spec 12.16). Results
   are published as numbers only.
 
@@ -330,3 +362,42 @@ load on the machine; run 2 is therefore cached and run overnight.
   orders severities within each factor correctly. §8.3 item 5 reports this.
 - 24 conditions limit the precision of every correlation, and of Δ most of
   all.
+- *[A1]* **The 24 conditions are not exchangeable draws.** They are 4 factors
+  × 6 ordered severities. The bootstrap resamples them as if they were
+  exchangeable, ignoring that severities within a factor are related, so every
+  CI is **narrower than the dependence structure warrants**, Δ's most of all.
+  A Rule A or B pass should be read with that in mind.
+
+### Rule B power *[A1]* (an estimate)
+
+Probability that Rule B passes (95% paired-bootstrap CI of Δ above 0), for
+n = 24 and ρ_base = 0.56, by the true ρ_gap and the unknown correlation
+between the gap score and the dropout baseline:
+
+| ρ_gap | r(gap, base) = 0.2 | 0.4 | 0.6 | 0.8 | range |
+|---|---:|---:|---:|---:|---:|
+| 0.70 | 0.08 | 0.11 | 0.10 | 0.21 | 0.08–0.21 |
+| 0.80 | 0.17 | 0.25 | 0.33 | 0.51 | 0.17–0.51 |
+| 0.85 | 0.34 | 0.41 | 0.50 | 0.76 | 0.34–0.76 |
+| 0.90 | 0.54 | 0.57 | 0.77 | 0.98 | 0.54–0.98 |
+| 0.95 | infeasible | 0.88 | 0.97 | infeasible | 0.88–0.97 |
+
+Assumptions, so the numbers can be reproduced with
+`python scripts/power_rule_b.py --sims 300` (seed 0):
+
+- The 24 conditions are exchangeable draws from a **Gaussian copula** over
+  (landmark error, gap score, baseline). Spearman targets are converted to
+  latent Pearson correlations as r = 2·sin(π·ρ/6).
+- **300 simulated studies per cell**, each analysed exactly as pre-registered
+  (paired percentile bootstrap, 10,000 resamples, 95%). The Monte Carlo
+  error is about ±3 percentage points per cell.
+- Scores are continuous, with no ties. Real dropout ties heavily at 0%, so the
+  baseline will have coarser resolution than modelled.
+- Cells whose correlation matrix is not positive definite are infeasible.
+- The real conditions violate the exchangeability assumption (see the
+  limitation above).
+
+An independent simulation by the author under the same copula model gave
+similar ranges (0.70: 9–16%; 0.80: 29–47%; 0.85: 48–70%; 0.90: 75–86%; 0.95:
+94–98%). The differences come from the assumed range of r(gap, base) and from
+Monte Carlo error.
