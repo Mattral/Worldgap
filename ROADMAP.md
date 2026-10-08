@@ -77,9 +77,13 @@ at the end of a phase.
 - [x] Real convergence check on **perception** data — done 2026-10-01: fitted
       on 138 windows from 3 real clean recordings without collapse (final
       loss 0.024). See `docs/v1_first_run_results.md`.
-- [ ] **Spec 5.2 landmark normalization** — a MUST for V1 that was never
-      implemented; the model saw raw image coordinates. Found by the first
-      real run. Next item.
+- [x] **Spec 5.2 landmark normalization** — a MUST for V1 that was never
+      implemented (the first real run used raw image coordinates). Now in
+      `data/normalization.py`, applied by every real-data loader, with
+      per-frame parameters in metadata. `tests/test_normalization.py` checks
+      that translating or scaling a rollout as a whole leaves its encoding
+      unchanged. Open question for run 2: the hip-midpoint origin is
+      extrapolated when hips are out of frame (spec 5.2 note).
 
 ## Phase 3 — Divergence module
 - [x] Fréchet distance with Ledoit-Wolf shrinkage + complex-component handling

@@ -34,6 +34,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ..normalization import normalize_rollout
 from ..rollout import (
     PERCEPTION_FEATURE_LAYOUT,
     PERCEPTION_STATE_DIM,
@@ -161,13 +162,15 @@ def extract_rollout_from_frames(
 
     timestamps_ms = np.arange(n_frames) * (1000.0 / frame_rate_hz)
 
-    return Rollout(
-        modality="perception",
-        source=source,
-        condition=condition or {},
-        frame_rate_hz=frame_rate_hz,
-        states=states,
-        presence_mask=presence_mask.astype(np.float64),
-        timestamps_ms=timestamps_ms,
-        metadata={**(metadata or {}), TEMPORAL_PROVENANCE_KEY: temporal_provenance},
+    return normalize_rollout(
+        Rollout(
+            modality="perception",
+            source=source,
+            condition=condition or {},
+            frame_rate_hz=frame_rate_hz,
+            states=states,
+            presence_mask=presence_mask.astype(np.float64),
+            timestamps_ms=timestamps_ms,
+            metadata={**(metadata or {}), TEMPORAL_PROVENANCE_KEY: temporal_provenance},
+        )
     )

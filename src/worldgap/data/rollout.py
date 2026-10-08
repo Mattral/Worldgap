@@ -280,10 +280,17 @@ def split_into_windows(
     if hop < 1:
         raise ValueError(f"hop_frames must be >= 1, got {hop}")
 
+    from .normalization import NORMALIZATION_KEY, slice_normalization_params
+
     total = rollout.states.shape[0]
     windows: list[Rollout] = []
     for start in range(0, total - window_frames + 1, hop):
         end = start + window_frames
+        extra = {}
+        if NORMALIZATION_KEY in rollout.metadata:
+            extra[NORMALIZATION_KEY] = slice_normalization_params(
+                rollout.metadata[NORMALIZATION_KEY], start, end
+            )
         windows.append(
             Rollout(
                 modality=rollout.modality,
@@ -295,6 +302,7 @@ def split_into_windows(
                 timestamps_ms=rollout.timestamps_ms[start:end],
                 metadata={
                     **rollout.metadata,
+                    **extra,
                     "window_of": rollout.rollout_id,
                     "windows_are_not_independent_samples": True,
                 },

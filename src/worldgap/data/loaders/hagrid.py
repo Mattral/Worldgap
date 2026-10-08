@@ -36,6 +36,7 @@ from __future__ import annotations
 import warnings
 from pathlib import Path
 
+from ..normalization import normalize_rollout
 from ..rollout import TEMPORAL_PROVENANCE_KEY, Rollout
 from .mediapipe_extract import holistic_result_to_feature_vector
 
@@ -155,19 +156,21 @@ def extract_static_pose_rollouts(
         result = landmarker.detect(image)
         features, presence = holistic_result_to_feature_vector(result)
         rollouts.append(
-            Rollout(
-                modality="perception",
-                source="real",
-                condition={**(condition or {}), "image": path.name},
-                frame_rate_hz=0.0,
-                states=features[None, :],
-                presence_mask=presence[None, :].astype(np.float64),
-                timestamps_ms=np.zeros(1),
-                metadata={
-                    **(metadata or {}),
-                    TEMPORAL_PROVENANCE_KEY: "static_pose",
-                    "gesture": path.parent.name,
-                },
+            normalize_rollout(
+                Rollout(
+                    modality="perception",
+                    source="real",
+                    condition={**(condition or {}), "image": path.name},
+                    frame_rate_hz=0.0,
+                    states=features[None, :],
+                    presence_mask=presence[None, :].astype(np.float64),
+                    timestamps_ms=np.zeros(1),
+                    metadata={
+                        **(metadata or {}),
+                        TEMPORAL_PROVENANCE_KEY: "static_pose",
+                        "gesture": path.parent.name,
+                    },
+                )
             )
         )
     return rollouts

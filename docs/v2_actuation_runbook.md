@@ -79,13 +79,15 @@ surprise:
 ## Results
 
 Reproducible with the command at the top (`seed: 0`): bit-identical across
-runs on the same platform and torch build. Across platforms, expect the last
-digits of the per-level MMD² values to move: on Windows with Python 3.14 and
-torch 2.14 (CPU), they differ from the table below by up to 3×10⁻⁶ (e.g.
-−0.128881 vs −0.128882), while the physical residuals, every Fréchet value, the
-overall MMD² and ρ = +0.943 match to all printed digits. Floating-point
-reduction order differs between torch builds; spec 12.18's lockfile is what
-pins it exactly.
+runs on the same platform, torch build **and CPU thread count**. Change any of
+those and expect the last digits of the MMD² values to move. On Windows with
+Python 3.14 and torch 2.14 (CPU) at the default thread count, the per-level
+MMD² values differ from the table below by up to 3×10⁻⁶ (e.g. −0.128881 vs
+−0.128882), while the physical residuals, every Fréchet value, the overall
+MMD² and ρ = +0.943 match to all printed digits. On the same machine with
+`OMP_NUM_THREADS=4`, the overall MMD² reads −0.014865 instead of −0.014864.
+Both are floating-point reduction order; spec 12.18's lockfile (plus a fixed
+thread count) is what pins it exactly.
 
 ### 1. Physical residuals — the interpretable number
 
