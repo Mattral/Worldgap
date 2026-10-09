@@ -41,7 +41,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   discarding every score and correlation unread. That is how it is tested on
   run 1's footage without previewing run 2's result. `--max-frames`,
   `--epochs` and `--bootstrap` exist for smoke tests and mark the output as
-  not run 2. `tests/test_v1_run2_script.py` (5 tests, synthetic videos and a
+  not run 2. `tests/test_v1_run2_script.py` (4 tests, synthetic videos and a
   fake landmarker) covers the full pipeline, resuming from cache, blind mode
   leaking no numbers, the 3-clean-take rule and the interpretation.
 - **`worldgap.validation.stats.paired_spearman_bootstrap`**: Spearman ρ of
@@ -101,6 +101,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`LandmarkEncoder` crashed on a window in which nothing was detected in
+  any frame.** Such a window is fully masked. PyTorch's inference fast path
+  raised `to_padded_tensor: at least one constituent tensor should have
+  non-zero numel` (the analyzer encodes windows one at a time, so one empty
+  window is enough), and attention is undefined for it in training mode. Fully
+  masked windows are now unmasked. Their frame outputs are discarded by the
+  presence-weighted pooling anyway, so every empty window encodes to the same
+  "nothing detected" summary. Found by the run-2 blind test on run 1's
+  footage, where the harshest degradations lost the whole body for 48 frames.
+  Two regression tests; one reproduces the exact error against the old code.
 - **Spec 5.2 landmark normalization, implemented** (`data/normalization.py`).
   It is a MUST for V1 and was never implemented; the first real run fed raw
   image coordinates to the model. Pose is translated by the hip midpoint and

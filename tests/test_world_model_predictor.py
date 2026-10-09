@@ -85,3 +85,37 @@ def test_target_branch_still_carries_no_gradient():
     loss, _ = model(ctx, torch.ones_like(ctx), fut, torch.ones_like(fut))
     loss.backward()
     assert all(p.grad is None for p in model.target_encoder.parameters())
+
+
+@pytest.mark.parametrize("train_mode", [False, True])
+def test_a_window_with_nothing_detected_in_any_frame_is_encoded_not_crashed(train_mode):
+    """Regression (run-2 blind test): a window where MediaPipe detected nothing
+    in any of its frames is fully masked. PyTorch's inference fast path crashed
+    on it and training mode gives NaN. It must encode to the same finite
+    "nothing detected" summary as any other empty window."""
+    model = _build()
+    model.train(train_mode)
+    states = torch.randn(3, 10, 12)
+    presence = torch.ones(3, 10, 12)
+    presence[1] = 0.0  # nothing detected in any frame
+    presence[2] = 0.0
+    states[1] = 0.0
+    states[2] = 0.0
+    with torch.no_grad():
+        h = model.context_encoder(states, presence)
+        summary = model.encode_rollout_summary(states, presence)
+    assert torch.isfinite(h).all() and torch.isfinite(summary).all()
+    torch.testing.assert_close(summary[1], summary[2])  # all empty windows coincide
+    assert not torch.allclose(summary[0], summary[1])
+
+
+def test_a_lone_empty_window_encodes_in_inference_mode():
+    """The exact failing case: GapAnalyzer encodes windows one at a time, so an
+    empty window arrives as a batch of one. PyTorch's fast path then has no
+    non-empty sequence at all and raised 'to_padded_tensor: at least one
+    constituent tensor should have non-zero numel'."""
+    model = _build()
+    model.eval()
+    with torch.no_grad():
+        summary = model.encode_rollout_summary(torch.zeros(1, 10, 12), torch.zeros(1, 10, 12))
+    assert torch.isfinite(summary).all()

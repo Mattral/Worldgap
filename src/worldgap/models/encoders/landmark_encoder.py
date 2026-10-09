@@ -45,4 +45,15 @@ class LandmarkEncoder(nn.Module):
         key_padding_mask = None
         if frame_presence is not None:
             key_padding_mask = ~frame_presence.bool()  # True = ignore, per torch convention
+            # A window where MediaPipe detected nothing in ANY frame would be
+            # fully masked, which attention cannot handle (NaN in training mode;
+            # a crash in PyTorch's inference fast path). Unmask such windows:
+            # their frame outputs are discarded by masked_mean_pool anyway, so
+            # every empty window still maps to the same "nothing detected"
+            # summary. Found by the run-2 blind test, where the harshest
+            # degradations lost the whole body for 48 frames.
+            fully_missing = key_padding_mask.all(dim=1)
+            if fully_missing.any():
+                key_padding_mask = key_padding_mask.clone()
+                key_padding_mask[fully_missing] = False
         return self.transformer(h, src_key_padding_mask=key_padding_mask)
