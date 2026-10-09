@@ -25,6 +25,30 @@ original text is in git history (merge `c153902`). Amended passages are marked
 - **§12:** adds the testing protocol for the analysis script before run-2
   data exists (synthetic data, and run 1's footage in blind mode).
 
+**Amendment 2 — 2026-10-09, made before any run-2 data existed.** The
+original text is in git history (merge `6c44167`). Amended passages are
+marked *[A2]*.
+
+- **Why:** the pre-registered blind test (§12) found two problems on run 1's
+  footage, and the document did not say how to handle the second.
+  1. The encoder crashed on a window with nothing detected in any frame. This
+     is fixed in code: every such window now encodes to one "nothing
+     detected" summary.
+  2. In a condition whose windows were all empty (`noise_32` in the test), all
+     target latents are identical. The Fréchet safeguard then refused to give
+     a number, because its imaginary-to-real ratio test divided by a near-zero
+     real part. The distance is not undefined there: with Σ_B = 0 it is
+     exactly ‖μ_A − μ_B‖² + tr(Σ_A).
+- **§7.1:** the Fréchet distance is computed with the symmetric eigenvalue
+  formulation. It is exact, has no free parameter, agrees with the original on
+  well-conditioned data, and is a documented deviation from spec 7.1.
+- **§8.2 and §8.4:** a sensitivity analysis, reported with equal prominence:
+  Rules A and B recomputed without the conditions whose landmark error is
+  undefined.
+- **§8.3:** a per-take breakdown for every condition, and the computability
+  rule for the present-frames-only gap.
+- **§12:** the blind-test outcome.
+
 Run 1 (`v1_first_run_results.md`) was null and underpowered: the conditions
 barely made MediaPipe fail, take-to-take noise was comparable to the
 between-condition signal, and spec 5.2 normalization was missing. Run 2 is
@@ -185,6 +209,19 @@ For each condition: **Fréchet distance** (`GapAnalyzer.compute_gap`) between
 the 138 clean windows (source) and the condition's 138 windows (target),
 using the one model of §6. MMD² is reported alongside as a secondary score.
 
+*[A2]* The trace term tr((Σ_A Σ_B)^½) is computed as tr((Σ_B^½ Σ_A Σ_B^½)^½) =
+Σᵢ √λᵢ, over the eigenvalues of a symmetric positive semidefinite matrix
+(clipped at zero), not as `sqrtm` of the non-symmetric product. This is exact.
+It has no free parameter and no complex component to judge, and it agrees with
+the original on well-conditioned covariances to floating point (verified: V2's
+published Fréchet values are unchanged). It stays correct when a covariance is
+singular or near-singular, for example when many or all of a condition's
+windows had nothing detected and encode to the same "nothing detected" summary.
+In that limit (Σ_B = 0) the distance is ‖μ_A − μ_B‖² + tr(Σ_A). This is a
+documented deviation from spec 7.1, which described discarding `sqrtm`'s small
+complex component. Every condition therefore receives a gap score; none is
+ranked or dropped by convention on the gap side.
+
 ### 7.2 Primary ground truth: paired landmark error
 
 For each condition and each clean take *k*: `paired_landmark_error(clean_k,
@@ -264,12 +301,22 @@ estimated power is in §13: about 17–51% at ρ_gap = 0.80 and 54–98% at 0.90
    correlated with landmark error. This shows whether the result survives when
    the gap score cannot see missing hands. If a condition has fewer than 80
    such windows (5 × summary_dim), its value is still reported, flagged.
+   *[A2]* With fewer than 3 such windows the gap cannot be estimated. The
+   condition is then reported as "not computable" and the correlation uses the
+   remaining conditions, with their count stated. (In the blind test this
+   happened for 3 of 24 conditions.)
 3. The `1 − presence_density` baseline against landmark error.
 4. ρ(MMD², landmark error).
 5. Per-factor rank agreement (within each of the 4 factors), descriptive.
 6. **Practical note, not a decision:** whether ρ_gap ≥ 0.6.
 7. Physical conditions (§4.2): table of gap scores, dropout and baseline.
 8. Confidence flag per condition, with the non-independence caveat.
+9. *[A2]* **Per-take breakdown for every condition**, not only flagged
+   ones: for each of the 3 takes, dropout, landmark error, frames compared and
+   presence density. Pooled means can hide all-or-nothing behaviour. In the
+   blind test, under `noise` at std 20, MediaPipe tracked 100% of frames in two
+   takes and never found the body in the third; fresh footage could do this
+   in several conditions.
 
 ### 8.4 Interpretation, fixed in advance
 
@@ -282,6 +329,19 @@ estimated power is in §13: about 17–51% at ρ_gap = 0.80 and 54–98% at 0.90
 
 *[A1]* ρ_gap here is the point estimate of §8.1. The 0.80 threshold is fixed
 now, before data, from the §13 power table; it is not moved afterwards.
+
+*[A2]* **Sensitivity analysis, equal prominence.** Rules A and B, with this
+same table, are computed twice:
+(i) over all 24 conditions, with undefined landmark error ranked worst
+(§4.1), as originally pre-registered; and
+(ii) over only the conditions whose landmark error was measured.
+A condition ranked worst by convention, not measurement, can contribute
+agreement that is partly definitional, especially if it also has the largest
+gap. Both results are reported side by side, neither as the headline over the
+other. If the two disagree on either rule, the headline says the conclusion
+depends on the conditions ranked by convention, and no single verdict is
+claimed. If no landmark error is undefined, the two analyses coincide and only
+one is reported.
 
 None of these outcomes is generalised beyond one person, one camera and
 simulated degradations of real footage.
@@ -342,6 +402,13 @@ load on the machine; run 2 is therefore cached and run overnight.
   analyses) but writes only a health report and discards every score and
   correlation unread. A non-blind run on real footage, which would preview the
   result for these exact conditions, is not made before run 2.
+- *[A2]* **Blind test outcome** (run 1's 3 clean takes, first 300 frames
+  each). The first attempt completed all 75 extractions and training, then
+  crashed on an empty window (encoder fix). The second hit the Fréchet
+  safeguard misfire (§7.1, A2). After both fixes, every stage passes: 24
+  finite gap scores, finite CIs for both rules, the sensitivity analysis, all
+  secondary analyses, 72 per-take rows and the report. Health report only; no
+  score or correlation was read.
 - Recordings stay on the recording machine (gitignored; spec 12.16). Results
   are published as numbers only.
 

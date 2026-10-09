@@ -200,6 +200,24 @@ def gap(analyzer: GapAnalyzer, source: list[Rollout], target: list[Rollout]) -> 
     }
 
 
+def apply_rules(truth: np.ndarray, scores: dict, n_bootstrap: int) -> dict:
+    """Rules A and B (section 8.2) from one paired bootstrap, with the amended
+    section 8.4 reading."""
+    stats = paired_spearman_bootstrap(truth, scores, [("gap", "no_hand_fraction")],
+                                      n_bootstrap=n_bootstrap, seed=SEED)
+    rho_gap = stats["rho"]["gap"]
+    rule_a = stats["ci"]["gap"][0] > 0
+    rule_b = stats["diff"]["gap-no_hand_fraction"]["ci"][0] > 0
+    return {
+        "n_conditions": int(truth.shape[0]),
+        "A": {"rho_gap": rho_gap, "ci": stats["ci"]["gap"], "pass": bool(rule_a)},
+        "B": {"rho_baseline": stats["rho"]["no_hand_fraction"],
+              **stats["diff"]["gap-no_hand_fraction"], "pass": bool(rule_b)},
+        "interpretation": interpret(rule_a, rule_b, rho_gap),
+        "stats": stats,
+    }
+
+
 def interpret(rule_a: bool, rule_b: bool, rho_gap: float) -> str:
     """Section 8.4 as amended (Amendment 1)."""
     if not rule_a:
@@ -376,12 +394,9 @@ def main() -> int:
         present = fully_present(cond_windows)
         present_gap = None
         if len(present) >= 3 and len(clean_present) >= 3:
-            try:
-                pg = gap(analyzer, clean_present, present)
-                pg.pop("_result")
-                present_gap = {**pg, "below_confidence_floor": len(present) < 5 * SUMMARY_DIM}
-            except FloatingPointError as e:
-                present_gap = {"error": str(e)}
+            pg = gap(analyzer, clean_present, present)
+            pg.pop("_result")
+            present_gap = {**pg, "below_confidence_floor": len(present) < 5 * SUMMARY_DIM}
         rows.append({
             "condition": name, **PRIMARY[name].describe(), **g,
             "landmark_error": pooled_landmark_error(takes),
@@ -406,11 +421,18 @@ def main() -> int:
         "one_minus_presence_density": np.array([r["one_minus_presence_density"] for r in rows]),
         "mmd2": np.array([r["mmd2"] for r in rows]),
     }
-    main_stats = paired_spearman_bootstrap(truth, scores, [("gap", "no_hand_fraction")],
-                                           n_bootstrap=args.bootstrap, seed=SEED)
-    rho_gap = main_stats["rho"]["gap"]
-    rule_a = main_stats["ci"]["gap"][0] > 0
-    rule_b = main_stats["diff"]["gap-no_hand_fraction"]["ci"][0] > 0
+    full = apply_rules(truth, scores, args.bootstrap)
+    # Amendment 2: the same rules without conditions whose landmark error is
+    # undefined (ranked worst by convention, not measurement). Reported with
+    # equal prominence; any disagreement goes in the headline.
+    measured = np.isfinite(err)
+    sensitivity = (
+        apply_rules(err[measured], {k: v[measured] for k, v in scores.items()}, args.bootstrap)
+        if measured.sum() >= 3 and not measured.all()
+        else None
+    )
+    main_stats = full["stats"]
+    rho_gap = full["A"]["rho_gap"]
 
     dropout = np.array([r["dropout"] for r in rows])
     dropout_stats = paired_spearman_bootstrap(
@@ -448,17 +470,22 @@ def main() -> int:
             "takes": takes,
         })
 
-    verdict = interpret(rule_a, rule_b, rho_gap)
+    def _public(rules):
+        return {k: v for k, v in rules.items() if k != "stats"} if rules else None
+
+    disagree = bool(
+        sensitivity
+        and (sensitivity["A"]["pass"] != full["A"]["pass"] or sensitivity["B"]["pass"] != full["B"]["pass"])
+    )
     results = {
         "status": "smoke" if smoke else "run2",
         "fit": fit,
-        "rules": {
-            "A": {"rho_gap": rho_gap, "ci": main_stats["ci"]["gap"], "pass": bool(rule_a)},
-            "B": {"rho_baseline": main_stats["rho"]["no_hand_fraction"],
-                  **main_stats["diff"]["gap-no_hand_fraction"], "pass": bool(rule_b)},
-            "interpretation": verdict,
-        },
+        # Amendment 2: both analyses, equal prominence.
+        "rules_all_24": _public(full),
+        "rules_measured_only": _public(sensitivity),
+        "rules_disagree": disagree,
         "primary_stats": main_stats,
+        "sensitivity_stats": sensitivity["stats"] if sensitivity else None,
         "secondary": {
             "dropout_ground_truth": dropout_stats,
             "present_frames_only": present_stats,
@@ -466,7 +493,7 @@ def main() -> int:
             "rho_gap_at_least_0.6": bool(rho_gap >= PRACTICAL_RHO),
             "undefined_landmark_error_ranked_worst": undefined,
         },
-        "conditions": rows,
+        "conditions": rows,  # each with its per-take breakdown under "takes"
         "physical": physical_rows,
         "extraction_minutes": round((time.perf_counter() - t0) / 60, 1),
     }
@@ -488,6 +515,8 @@ def main() -> int:
             "n_present_only_gap_computed": sum(1 for r in rows if (r["present_only_gap"] or {}).get("frechet") is not None),
             "rule_a_ci_finite": bool(np.isfinite(main_stats["ci"]["gap"]).all()),
             "rule_b_ci_finite": bool(np.isfinite(main_stats["diff"]["gap-no_hand_fraction"]["ci"]).all()),
+            "sensitivity_analysis_computed": sensitivity is not None,
+            "per_take_rows": sum(len(r["takes"]) for r in rows),
             "bootstrap_valid_resamples": main_stats["n_valid"],
             "secondary_computed": {
                 "dropout": dropout_stats is not None,
@@ -506,14 +535,30 @@ def main() -> int:
     (out / "results.json").write_text(json.dumps(results, indent=2, default=float))
     generate_report(entries, out / "run2_report.html", title="worldgap V1 run 2" + (" (SMOKE)" if smoke else ""))
 
-    print(f"\nRule A: rho_gap = {rho_gap:+.3f}, 95% CI [{main_stats['ci']['gap'][0]:+.3f}, "
-          f"{main_stats['ci']['gap'][1]:+.3f}] -> {'PASS' if rule_a else 'FAIL'}")
-    d = main_stats["diff"]["gap-no_hand_fraction"]
-    print(f"Rule B: rho_base = {main_stats['rho']['no_hand_fraction']:+.3f}, delta = {d['delta']:+.3f}, "
-          f"95% CI [{d['ci'][0]:+.3f}, {d['ci'][1]:+.3f}] -> {'PASS' if rule_b else 'FAIL'}")
-    print(f"\n{verdict}")
+    def _show(label, rules):
+        a, b = rules["A"], rules["B"]
+        print(f"\n{label} ({rules['n_conditions']} conditions)")
+        print(f"  Rule A: rho_gap = {a['rho_gap']:+.3f}, 95% CI [{a['ci'][0]:+.3f}, {a['ci'][1]:+.3f}]"
+              f" -> {'PASS' if a['pass'] else 'FAIL'}")
+        print(f"  Rule B: rho_base = {b['rho_baseline']:+.3f}, delta = {b['delta']:+.3f}, "
+              f"95% CI [{b['ci'][0]:+.3f}, {b['ci'][1]:+.3f}] -> {'PASS' if b['pass'] else 'FAIL'}")
+        print(f"  {rules['interpretation']}")
+
+    _show("All 24 conditions (undefined landmark error ranked worst)", full)
+    if sensitivity:
+        _show("Measured conditions only (Amendment 2 sensitivity, equal prominence)", sensitivity)
+        if disagree:
+            print("\nTHE TWO ANALYSES DISAGREE: the conclusion depends on conditions ranked by convention.")
     if undefined:
-        print(f"Undefined landmark error (ranked worst): {undefined}")
+        print(f"Undefined landmark error (ranked worst in the first analysis): {undefined}")
+
+    print("\nPer-take breakdown (dropout / landmark error / frames compared):")
+    for r in rows:
+        cells = "  ".join(
+            f"{t['hand_dropout_rate']:6.1%} / {t['hand_landmark_error']:.4f} / {t['frames_compared_fraction']:.2f}"
+            for t in r["takes"]
+        )
+        print(f"  {r['condition']:<15} {cells}")
     print(f"\nResults -> {out / 'results.json'}")
     return 0
 

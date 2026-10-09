@@ -59,3 +59,59 @@ def test_result_reports_required_metadata():
     assert result.n_target == 60
     assert result.latent_dim == 4
     assert result.confidence in {"low", "medium", "high"}
+
+
+# -- symmetric formulation (run-2 blind test: singular covariance) --------------------
+
+
+def _old_trace_sqrt(cov_a, cov_b):
+    from scipy import linalg
+
+    return float(np.trace(linalg.sqrtm(cov_a @ cov_b).real))
+
+
+def test_symmetric_trace_matches_sqrtm_on_well_conditioned_covariances():
+    from worldgap.metrics.frechet import _trace_sqrt_product
+
+    rng = np.random.default_rng(0)
+    for _ in range(20):
+        a = rng.normal(size=(40, 8))
+        b = rng.normal(size=(40, 8)) * rng.uniform(0.5, 2.0, 8)
+        ca, cb = np.cov(a.T), np.cov(b.T)
+        assert _trace_sqrt_product(ca, cb) == pytest.approx(_old_trace_sqrt(ca, cb), rel=1e-9)
+
+
+def test_zero_target_covariance_gives_the_exact_closed_form():
+    """Every target latent identical (e.g. every window empty): Σ_B = 0, and
+    FD = ||μ_A − μ_B||² + tr(Σ_A) exactly. The old sqrtm ratio test raised here."""
+    from sklearn.covariance import LedoitWolf
+
+    rng = np.random.default_rng(1)
+    source = rng.normal(size=(30, 6))
+    target = np.tile(rng.normal(size=6), (18, 1))
+    result = frechet_distance(source, target)
+    cov_a = LedoitWolf().fit(source).covariance_
+    expected = float(np.sum((source.mean(0) - target[0]) ** 2) + np.trace(cov_a))
+    assert result.distance == pytest.approx(expected, rel=1e-12)
+
+
+def test_near_degenerate_targets_are_finite_and_continuous():
+    """17 of 18 windows identical: no blow-up, and the distance moves smoothly
+    toward the fully degenerate value."""
+    rng = np.random.default_rng(2)
+    source = rng.normal(size=30 * 6).reshape(30, 6)
+    point = rng.normal(size=6)
+    distances = []
+    for spread in (1e-1, 1e-3, 1e-6, 0.0):
+        target = np.tile(point, (18, 1))
+        target[0] += spread * rng.normal(size=6)
+        distances.append(frechet_distance(source, target).distance)
+    assert np.isfinite(distances).all()
+    assert abs(distances[-2] - distances[-1]) < 1e-3
+
+
+def test_distance_is_non_negative_and_symmetric():
+    rng = np.random.default_rng(3)
+    a, b = rng.normal(size=(40, 5)), rng.normal(1.0, 2.0, size=(40, 5))
+    ab, ba = frechet_distance(a, b).distance, frechet_distance(b, a).distance
+    assert ab >= 0 and ab == pytest.approx(ba, rel=1e-9)

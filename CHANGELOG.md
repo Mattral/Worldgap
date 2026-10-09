@@ -22,6 +22,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Run-2 pre-registration, Amendment 2** (2026-10-09, before any run-2
+  data). The symmetric Fréchet computation; a sensitivity analysis, reported
+  with equal prominence, that recomputes Rules A and B without the conditions
+  whose landmark error is undefined (ranked worst by convention, so they can
+  contribute partly definitional agreement); if the two disagree, no single
+  verdict is claimed; a per-take breakdown for every condition (blind test:
+  under `noise`, MediaPipe tracked whole takes or never acquired the body);
+  and when the present-frames-only gap counts as not computable (fewer than 3
+  such windows). `scripts/run_v1_run2.py` implements both analyses
+  (`rules_all_24`, `rules_measured_only`, `rules_disagree`) and prints the
+  per-take table. The blind test on run 1's footage now passes every stage.
 - **Run-2 recording plan:** `scripts/record_v1_session.py --plan run2` records
   pre-registration §3's 21 takes in its fixed order (clean 0 and 1, the 6
   physical conditions, clean 2) into `recordings_run2/`. That is a separate
@@ -41,7 +52,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   discarding every score and correlation unread. That is how it is tested on
   run 1's footage without previewing run 2's result. `--max-frames`,
   `--epochs` and `--bootstrap` exist for smoke tests and mark the output as
-  not run 2. `tests/test_v1_run2_script.py` (5 tests, synthetic videos and a
+  not run 2. `tests/test_v1_run2_script.py` (4 tests, synthetic videos and a
   fake landmarker) covers the full pipeline, resuming from cache, blind mode
   leaking no numbers, the 3-clean-take rule and the interpretation.
 - **`worldgap.validation.stats.paired_spearman_bootstrap`**: Spearman ρ of
@@ -101,6 +112,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Fréchet distance: the safeguard misfired on singular covariances.** The
+  trace term took `sqrtm` of the non-symmetric product Σ_A Σ_B and refused
+  (`FloatingPointError`) when the imaginary-to-real ratio exceeded 1e-3. When
+  every target latent was identical (every window empty), the shrunk
+  covariance was zero, the real part was about 1e-12, and the test divided by
+  nearly zero, although the distance is exactly ‖μ_A − μ_B‖² + tr(Σ_A) there.
+  It now uses the symmetric formulation tr((Σ_B^½ Σ_A Σ_B^½)^½) = Σᵢ √λᵢ
+  (eigenvalues clipped at zero). This is exact, has no free parameter, and is
+  stable for singular and near-singular covariances. It agrees with `sqrtm` on
+  well-conditioned data to 1e-9 (tested on 20 random pairs), and V2's
+  published Fréchet values reproduce exactly. A documented deviation from spec
+  7.1. `FrechetResult.sqrtm_had_complex_component` is kept for compatibility
+  and is now always `False`. 4 new tests; against the old code, the
+  near-degenerate test fails. Found by the run-2 blind test (`noise_32`).
+- **`LandmarkEncoder` crashed on a window in which nothing was detected in
+  any frame.** Such a window is fully masked. PyTorch's inference fast path
+  raised `to_padded_tensor: at least one constituent tensor should have
+  non-zero numel` (the analyzer encodes windows one at a time, so one empty
+  window is enough), and attention is undefined for it in training mode. Fully
+  masked windows are now unmasked. Their frame outputs are discarded by the
+  presence-weighted pooling anyway, so every empty window encodes to the same
+  "nothing detected" summary. Found by the run-2 blind test on run 1's
+  footage, where the harshest degradations lost the whole body for 48 frames.
+  Two regression tests; one reproduces the exact error against the old code.
 - **Spec 5.2 landmark normalization, implemented** (`data/normalization.py`).
   It is a MUST for V1 and was never implemented; the first real run fed raw
   image coordinates to the model. Pose is translated by the hip midpoint and

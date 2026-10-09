@@ -221,6 +221,7 @@ FD(A, B) = ||μ_A - μ_B||^2 + Tr(Σ_A + Σ_B - 2 * sqrtm(Σ_A @ Σ_B))
 ```
 
 - `sqrtm` (matrix square root) MUST use a numerically stable implementation (`scipy.linalg.sqrtm` with real-part extraction and small-eigenvalue clipping) — floating-point error commonly produces small complex components that MUST be discarded, not treated as an error.
+- *Implementation note (documented deviation, 2026-10-09):* the trace term tr((Σ_A Σ_B)^½) is computed with the symmetric formulation tr((Σ_B^½ Σ_A Σ_B^½)^½) = Σᵢ √λᵢ (eigenvalues of a symmetric PSD matrix, clipped at zero), not `sqrtm` of the non-symmetric product. It is mathematically identical and has no complex component to discard. The previous ratio test for a "small" complex component misfired whenever a covariance was singular, because it divided by a near-zero real part; this happened when every window of a condition encoded to the same latent. Well-conditioned results are unchanged (V2's published Fréchet values reproduce exactly). See `src/worldgap/metrics/frechet.py` and run 2's pre-registration, Amendment 2.
 - Covariance estimation MUST use a shrinkage estimator (Ledoit-Wolf, `sklearn.covariance.LedoitWolf`) rather than the naive empirical covariance — with rollout counts in the hundreds rather than the tens of thousands used in image-domain FID, naive covariance estimates will be poorly conditioned or singular (see 12.9).
 
 ### 7.2 MMD cross-check (MUST)

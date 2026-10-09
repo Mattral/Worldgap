@@ -110,7 +110,14 @@ def test_full_pipeline_then_resume_from_cache(recordings, tmp_path, monkeypatch)
     res = json.loads((out / "results.json").read_text())
     assert res["status"] == "smoke"
     assert len(res["conditions"]) == 24
-    assert {"A", "B", "interpretation"} <= set(res["rules"])
+    # Amendment 2: both analyses, side by side
+    assert {"A", "B", "interpretation"} <= set(res["rules_all_24"])
+    assert res["rules_all_24"]["n_conditions"] == 24
+    sens = res["rules_measured_only"]  # the fake leaves some conditions undefined
+    assert sens is not None and sens["n_conditions"] == 24 - len(res["secondary"]["undefined_landmark_error_ranked_worst"])
+    assert isinstance(res["rules_disagree"], bool)
+    # per-take breakdown for every condition
+    assert all(len(r["takes"]) == 3 for r in res["conditions"])
     # the fake loses the hand in the darkest conditions: reported, ranked worst, never dropped
     assert "darken_0.06" in res["secondary"]["undefined_landmark_error_ranked_worst"]
     assert {r["condition"] for r in res["conditions"]} == set(module.PRIMARY)
