@@ -115,8 +115,10 @@ at the end of a phase.
 - [x] Run 2 analysis script, `scripts/run_v1_run2.py`: caching, Rules A and B
       via one paired bootstrap, and a blind mode for testing on real footage.
       Tested on synthetic data.
-- [ ] Run 2: blind test on run 1's footage, recording helper with run 2's
-      session plan, recordings, overnight run, results.
+- [x] Run 2 readiness: recording helper with the pre-registered session plan
+      (`--plan run2`); blind test on run 1's footage passing every stage, after
+      fixing two problems it found (Amendment 2).
+- [ ] Run 2: recordings (one session), overnight analysis, results write-up.
 
 ## Phase 5 — Packaging, CLI, demo notebook
 - [x] `pyproject.toml`, src-layout, editable install — verified working
@@ -200,7 +202,7 @@ at the end of a phase.
 
 ## What's actually done vs. what's scaffolded
 
-**Genuinely implemented and tested** (134 passing tests as of 0.2.0, with the
+**Genuinely implemented and tested** (134 passing tests at 0.2.0, 192 on `main` as of 2026-10-09, with the
 `perception` extra installed; without it, 6 skip):
 Rollout schema with temporal-provenance enforcement, SQLite metadata index,
 synthetic perturbation, video loading and MediaPipe-side ground-truth

@@ -241,6 +241,7 @@ FD(A, B) = ||μ_A - μ_B||^2 + Tr(Σ_A + Σ_B - 2 * sqrtm(Σ_A @ Σ_B))
 ### 8.1 Ground-truth degradation signals (MUST be independent of the world model)
 
 - **V1**: MediaPipe's own per-frame confidence score and landmark-dropout rate, computed directly from the MediaPipe task output — MUST NOT be derived from, or otherwise depend on, the trained world model's outputs. This independence is what prevents the validation from being circular (see 12.10).
+- *Deviation for V1 run 2 (documented, not restated here):* run 2 uses a different primary ground truth. The authority is `docs/v1_run2_preregistration.md` §7.2 and §10. Run 1 used the dropout signal above.
 - **V2**: residual error between the simulated actuator's predicted response and the digitized real curve, at matched commanded-pressure setpoints — also independent of the world model.
 
 ### 8.2 Correlation methodology (MUST)
@@ -252,6 +253,7 @@ FD(A, B) = ||μ_A - μ_B||^2 + Tr(Σ_A + Σ_B - 2 * sqrtm(Σ_A @ Σ_B))
 ### 8.3 Anti-circularity requirement (MUST)
 
 - The set of conditions used to validate the metric MUST be pre-specified (a fixed list of (lighting, occlusion, motion-profile) combinations) before running the correlation analysis. Selecting or trimming conditions after seeing results, or reporting only the best-correlating subset, is a multiple-comparisons violation and MUST NOT be done — if this spec is later revisited to relax this, that must be a deliberate, documented decision, not a default.
+- *Deviation for V1 run 2 (documented, not restated here):* run 2's condition set and its pre-registration, including dated amendments, are in `docs/v1_run2_preregistration.md` (§4 and §10).
 
 ### 8.4 Reporting (MUST)
 
