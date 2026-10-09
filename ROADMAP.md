@@ -112,8 +112,11 @@ at the end of a phase.
       computed no gap scores), plus 6 descriptive physical conditions. Primary
       ground truth: paired landmark error. Decision rules: ρ CI lower bound > 0,
       and beating a dropout-counting baseline (CI on Δρ > 0).
-- [ ] Run 2: analysis script with caching (committed before processing),
-      recordings, overnight run, results.
+- [x] Run 2 analysis script, `scripts/run_v1_run2.py`: caching, Rules A and B
+      via one paired bootstrap, and a blind mode for testing on real footage.
+      Tested on synthetic data.
+- [ ] Run 2: blind test on run 1's footage, recording helper with run 2's
+      session plan, recordings, overnight run, results.
 
 ## Phase 5 — Packaging, CLI, demo notebook
 - [x] `pyproject.toml`, src-layout, editable install — verified working
