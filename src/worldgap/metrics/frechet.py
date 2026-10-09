@@ -2,13 +2,18 @@
 
 FD(A, B) = ||mu_A - mu_B||^2 + Tr(Sigma_A + Sigma_B - 2 * sqrtm(Sigma_A @ Sigma_B))
 
-Two requirements from the spec that are NOT optional:
-  1. Covariance MUST use Ledoit-Wolf shrinkage, not naive empirical covariance
-     (spec 7.1, 12.9) — with rollout counts in the hundreds rather than tens of
-     thousands, naive covariance is poorly conditioned or singular.
-  2. matrix sqrt MUST have its small complex component discarded, not treated
-     as an error (spec 7.1) — this is standard floating-point noise in sqrtm,
-     not a sign of a broken computation.
+Covariance MUST use Ledoit-Wolf shrinkage, not naive empirical covariance
+(spec 7.1, 12.9): with rollout counts in the hundreds rather than tens of
+thousands, naive covariance is poorly conditioned or singular.
+
+The trace of the matrix square root is computed with the symmetric
+formulation tr((Σ_B^½ Σ_A Σ_B^½)^½) = Σᵢ √λᵢ (see `_trace_sqrt_product`), not
+`sqrtm` of the non-symmetric product. This is a documented deviation from spec
+7.1, which describes discarding `sqrtm`'s small complex component: there is no
+complex component to discard. The old ratio test that judged when that
+component was "small" misfired whenever a covariance was singular, because it
+divided by a near-zero real part. Well-conditioned results agree with the old
+computation to floating-point precision.
 """
 
 from __future__ import annotations
@@ -16,7 +21,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy import linalg
 from sklearn.covariance import LedoitWolf
 
 # spec 7.3: n >= 5 * latent_dim per domain, else confidence is "low".
@@ -30,6 +34,8 @@ class FrechetResult:
     n_target: int
     latent_dim: int
     confidence: str  # "low" | "medium" | "high"
+    # Always False since the symmetric formulation (there is no complex
+    # component); kept so code written against 0.2.0 still works.
     sqrtm_had_complex_component: bool
 
 
@@ -71,27 +77,9 @@ def frechet_distance(source_latents: np.ndarray, target_latents: np.ndarray) -> 
     cov_target = LedoitWolf().fit(target_latents).covariance_
 
     mean_term = float(np.sum((mu_source - mu_target) ** 2))
-
-    cov_product = cov_source @ cov_target
-    sqrt_cov_product = linalg.sqrtm(cov_product)
-
-    had_complex = False
-    if np.iscomplexobj(sqrt_cov_product):
-        imag_magnitude = np.max(np.abs(sqrt_cov_product.imag))
-        real_magnitude = np.max(np.abs(sqrt_cov_product.real)) + 1e-12
-        if imag_magnitude / real_magnitude > 1e-3:
-            # Large imaginary component is NOT the expected floating-point noise
-            # case — surface it rather than silently discarding.
-            raise FloatingPointError(
-                "sqrtm produced a large imaginary component "
-                f"(ratio={imag_magnitude / real_magnitude:.4g}); covariance matrices "
-                "may be ill-conditioned even after shrinkage — investigate before trusting "
-                "this result."
-            )
-        had_complex = True
-        sqrt_cov_product = sqrt_cov_product.real
-
-    trace_term = float(np.trace(cov_source) + np.trace(cov_target) - 2 * np.trace(sqrt_cov_product))
+    trace_term = float(
+        np.trace(cov_source) + np.trace(cov_target) - 2 * _trace_sqrt_product(cov_source, cov_target)
+    )
     distance = mean_term + trace_term
 
     return FrechetResult(
@@ -100,5 +88,29 @@ def frechet_distance(source_latents: np.ndarray, target_latents: np.ndarray) -> 
         n_target=n_target,
         latent_dim=latent_dim,
         confidence=_confidence(n_source, n_target, latent_dim),
-        sqrtm_had_complex_component=had_complex,
+        sqrtm_had_complex_component=False,
     )
+
+
+def _psd_sqrt(cov: np.ndarray) -> np.ndarray:
+    """Symmetric square root of a symmetric PSD matrix via eigh, with tiny
+    negative eigenvalues (floating-point noise) clipped to zero."""
+    vals, vecs = np.linalg.eigh((cov + cov.T) / 2)
+    return (vecs * np.sqrt(np.clip(vals, 0.0, None))) @ vecs.T
+
+
+def _trace_sqrt_product(cov_a: np.ndarray, cov_b: np.ndarray) -> float:
+    """tr((Σ_a Σ_b)^½), computed as tr((Σ_b^½ Σ_a Σ_b^½)^½) = Σᵢ √λᵢ.
+
+    Σ_a Σ_b is similar to the symmetric PSD matrix Σ_b^½ Σ_a Σ_b^½, so they
+    share eigenvalues, which are real and non-negative. Taking `sqrtm` of the
+    non-symmetric product instead (the original implementation) produces
+    complex round-off that has to be judged and discarded, and that judgement
+    breaks down when a covariance is singular. With Σ_b = 0, e.g. a condition
+    in which every window encoded to the same latent, this returns exactly 0,
+    so the distance reduces to ||μ_a − μ_b||² + tr(Σ_a) as it should.
+    """
+    root_b = _psd_sqrt(cov_b)
+    middle = root_b @ cov_a @ root_b
+    eig = np.linalg.eigvalsh((middle + middle.T) / 2)
+    return float(np.sum(np.sqrt(np.clip(eig, 0.0, None))))
