@@ -60,6 +60,10 @@ landmark normalization had not been implemented. Full write-up:
 still-image dataset and cannot supply V1's trajectories — see
 `docs/temporal_provenance.md`.)
 
+**Run 2 is pre-registered and not yet recorded:**
+[`docs/v1_run2_preregistration.md`](docs/v1_run2_preregistration.md), with
+dated amendments, is the authority on its design and decision rules.
+
 A note on what the bundled PGM data covers: Ogawa et al. (2017) Section 4 states the
 characterized actuator is a 300 mm walking-assist-scale muscle and explicitly says
 that length is *not* suitable for hand or wrist assistance. Applying this reference

@@ -81,6 +81,12 @@ takes into `recordings_run2/`: clean takes 0 and 1, the 6 physical conditions,
 then clean take 2. Record it as one session. Splitting it across days would be
 a deviation from the pre-registered order.
 
+**Run 2 does not use Steps 2–4 below.** Its analysis is
+`scripts/run_v1_run2.py`, and everything about it (conditions, model,
+measures, decision rules, interpretation) is fixed by
+`docs/v1_run2_preregistration.md` and its dated amendments, which are the
+authority. This runbook does not restate them.
+
 If you record with another tool instead, make sure each file's frame rate is
 the rate the camera really delivered.
 
