@@ -22,6 +22,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Run-2 recording plan:** `scripts/record_v1_session.py --plan run2` records
+  pre-registration §3's 21 takes in its fixed order (clean 0 and 1, the 6
+  physical conditions, clean 2) into `recordings_run2/`. That is a separate
+  folder because existing takes are skipped, so run 1's spent clean footage
+  can never be picked up. `recordings*/` is gitignored. A test ties the plan's
+  order and names to `run_v1_run2.PHYSICAL`.
 - **`scripts/run_v1_run2.py`, the run-2 analysis**, implementing
   `docs/v1_run2_preregistration.md` §5–§8 (with Amendment 1). Every
   (condition, take) extraction is cached, keyed on the video, transform,

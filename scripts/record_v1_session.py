@@ -9,6 +9,7 @@ the layout `scripts/run_v1_real_data.py` expects.
     python scripts/record_v1_session.py --test            10 s take + MediaPipe check
     python scripts/record_v1_session.py --session         the whole plan, resumable
     python scripts/record_v1_session.py --session --only dim_light
+    python scripts/record_v1_session.py --session --plan run2   # run 2 -> recordings_run2/
 
 Keys in the window: SPACE starts a take, S skips it, Q quits. A take aborted
 with Q is deleted, never kept half-recorded. Takes that already exist are
@@ -68,15 +69,34 @@ CONDITIONS = [
 ]
 
 
-def session_plan(only: str | None = None) -> list[tuple]:
-    """`clean` first and last (runbook: spot drift across the session)."""
-    by_name = {c[0]: c for c in CONDITIONS}
+# Run 2 (docs/v1_run2_preregistration.md, sections 3 and 4.2): 3 clean takes
+# that every software degradation is applied to afterwards, plus 6 physical
+# conditions. Names must match scripts/run_v1_run2.py's PHYSICAL.
+RUN2_CONDITIONS = [
+    CONDITIONS[0],  # clean
+    ("occlusion_25", "Card covering about a QUARTER of the gesturing hand, held in place.", 2.0, None),
+    ("occlusion_50", "Card covering about HALF of the gesturing hand, held in place.", 2.0, None),
+    ("occlusion_75", "Card covering about THREE QUARTERS of the gesturing hand, held in place.", 2.0, None),
+    ("distance_2m", "Sit/stand about 2 m from the camera.", 2.0, None),
+    ("distance_3m", "Sit/stand about 3 m from the camera.", 2.0, None),
+    ("distance_4m", "Sit/stand about 4 m from the camera.", 2.0, None),
+]
+PLANS = {"run1": CONDITIONS, "run2": RUN2_CONDITIONS}
+DEFAULT_RECORDINGS = {"run1": Path("recordings"), "run2": Path("recordings_run2")}
+
+
+def session_plan(only: str | None = None, plan_name: str = "run1") -> list[tuple]:
+    """`clean` takes 0 and 1 first, every other condition, then `clean` take 2
+    last, so drift across the session shows up (run 1's runbook; run 2's
+    pre-registration, section 3)."""
+    conditions = PLANS[plan_name]
+    by_name = {c[0]: c for c in conditions}
     if only:
         if only not in by_name:
             raise SystemExit(f"unknown condition {only!r}; choose from {sorted(by_name)}")
         return [(by_name[only], t) for t in range(TAKES)]
     plan = [(by_name["clean"], 0), (by_name["clean"], 1)]
-    for c in CONDITIONS[1:]:
+    for c in conditions[1:]:
         plan += [(c, t) for t in range(TAKES)]
     plan.append((by_name["clean"], 2))
     return plan
@@ -234,7 +254,18 @@ def main() -> int:
     mode.add_argument("--test", action="store_true", help="10 s test take, then a MediaPipe check")
     mode.add_argument("--session", action="store_true", help="record the session plan")
     ap.add_argument("--only", help="record just this condition's takes")
-    ap.add_argument("--recordings", type=Path, default=Path("recordings"))
+    ap.add_argument(
+        "--plan",
+        choices=sorted(PLANS),
+        default="run1",
+        help="run1: clean + 10 conditions; run2: clean + 6 physical conditions (pre-registered order)",
+    )
+    ap.add_argument(
+        "--recordings",
+        type=Path,
+        default=None,
+        help="default: recordings/ for run1, recordings_run2/ for run2 (never mix: existing takes are skipped)",
+    )
     ap.add_argument("--model", type=Path, default=Path("models/holistic_landmarker.task"))
     ap.add_argument("--seconds", type=float, default=75.0)
     ap.add_argument("--camera", type=int, default=0)
@@ -245,6 +276,8 @@ def main() -> int:
         help="where the test take goes; never inside --recordings, where it would become a condition",
     )
     args = ap.parse_args()
+    if args.recordings is None:
+        args.recordings = DEFAULT_RECORDINGS[args.plan]
 
     cap = _open_camera(args.camera)
     try:
@@ -265,7 +298,7 @@ def main() -> int:
             print(json.dumps({"event": "mediapipe", **mediapipe_check(out, args.model)}))
             return 0
 
-        plan = session_plan(args.only)
+        plan = session_plan(args.only, args.plan)
         for i, ((name, how, gesture_s, downscale), take) in enumerate(plan, 1):
             out = args.recordings / name / f"take{take}.mp4"
             if out.exists():
