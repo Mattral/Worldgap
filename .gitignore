@@ -27,4 +27,5 @@ recordings/
 v1_run/
 v2_run/
 v1_pilot/
+v1_run2*/
 models/*.task
