@@ -23,8 +23,9 @@ notebooks/*.png
 
 # real V1 capture data and run outputs (spec 12.16; also: recordings of people
 # are not repository content, whoever the person is)
-recordings/
+recordings*/
 v1_run/
 v2_run/
 v1_pilot/
+v1_run2*/
 models/*.task

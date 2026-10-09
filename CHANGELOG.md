@@ -22,6 +22,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Run-2 recording plan:** `scripts/record_v1_session.py --plan run2` records
+  pre-registration §3's 21 takes in its fixed order (clean 0 and 1, the 6
+  physical conditions, clean 2) into `recordings_run2/`. That is a separate
+  folder because existing takes are skipped, so run 1's spent clean footage
+  can never be picked up. `recordings*/` is gitignored. A test ties the plan's
+  order and names to `run_v1_run2.PHYSICAL`.
+- **`scripts/run_v1_run2.py`, the run-2 analysis**, implementing
+  `docs/v1_run2_preregistration.md` §5–§8 (with Amendment 1). Every
+  (condition, take) extraction is cached, keyed on the video, transform,
+  scheme and version, and written atomically, so an overnight run resumes
+  without redoing work. It writes `study_settings.json` (git commit, script
+  and model hashes) and `preregistered_conditions.json` before any score. It
+  fits one model on the clean windows (`summary_dim` 16), scores the 24
+  software-degraded conditions and the physical ones, and applies Rules A and
+  B from one paired bootstrap, with the amended §8.4 reading. **`--blind`**
+  runs every stage on real footage but writes only a health report,
+  discarding every score and correlation unread. That is how it is tested on
+  run 1's footage without previewing run 2's result. `--max-frames`,
+  `--epochs` and `--bootstrap` exist for smoke tests and mark the output as
+  not run 2. `tests/test_v1_run2_script.py` (5 tests, synthetic videos and a
+  fake landmarker) covers the full pipeline, resuming from cache, blind mode
+  leaking no numbers, the 3-clean-take rule and the interpretation.
+- **`worldgap.validation.stats.paired_spearman_bootstrap`**: Spearman ρ of
+  several scores against one ground truth, plus differences between them, from
+  a single percentile bootstrap over conditions. The same resample is used for
+  every score, so ρ_a − ρ_b gets a properly paired CI. `+inf` ground truth
+  ranks worst. With the same seed, a single score's CI equals
+  `spearman_with_bootstrap_ci`'s. 5 new tests in `tests/test_stats.py`.
 - **`docs/v1_run2_preregistration.md`: run 2, pre-registered** before any
   run-2 recording exists. 24 software-degraded conditions from fresh clean
   recordings (`darken`, `downscale`, `blur`, `noise` × 6 severities, chosen by

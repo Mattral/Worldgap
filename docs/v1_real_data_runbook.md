@@ -75,6 +75,12 @@ python scripts/record_v1_session.py --test      # 10 s take + MediaPipe check fi
 python scripts/record_v1_session.py --session   # 33 takes, clean first and last; resumable
 ```
 
+Run 2 has its own plan and folder (`docs/v1_run2_preregistration.md` §3):
+`python scripts/record_v1_session.py --session --plan run2`. That records 21
+takes into `recordings_run2/`: clean takes 0 and 1, the 6 physical conditions,
+then clean take 2. Record it as one session. Splitting it across days would be
+a deviation from the pre-registered order.
+
 If you record with another tool instead, make sure each file's frame rate is
 the rate the camera really delivered.
 

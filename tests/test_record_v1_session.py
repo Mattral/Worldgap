@@ -148,3 +148,21 @@ def test_loader_durations_follow_the_recorded_rate(rec, tmp_path):
     assert rollout.frame_rate_hz == pytest.approx(20.0, abs=0.01)
     gt = landmark_quality_ground_truth(rollout)
     assert gt["longest_dropout_run_s"] == pytest.approx(3.0, abs=0.06)
+
+
+def test_run2_plan_follows_the_preregistered_order(rec):
+    """Pre-registration section 3: clean takes 0 and 1, the 6 physical
+    conditions x 3, then clean take 2 last; names match the analysis script."""
+    spec = importlib.util.spec_from_file_location("run_v1_run2", SCRIPT.parent / "run_v1_run2.py")
+    analysis = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(analysis)
+
+    plan = rec.session_plan(plan_name="run2")
+    names = [c[0] for c, _ in plan]
+    takes = [t for _, t in plan]
+    assert len(plan) == 3 + 6 * 3
+    assert list(zip(names[:2], takes[:2])) == [("clean", 0), ("clean", 1)]
+    assert (names[-1], takes[-1]) == ("clean", 2)
+    middle = list(dict.fromkeys(names[2:-1]))
+    assert middle == analysis.PHYSICAL
+    assert rec.DEFAULT_RECORDINGS["run2"] != rec.DEFAULT_RECORDINGS["run1"]
