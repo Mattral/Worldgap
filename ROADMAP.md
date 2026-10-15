@@ -118,7 +118,12 @@ at the end of a phase.
 - [x] Run 2 readiness: recording helper with the pre-registered session plan
       (`--plan run2`); blind test on run 1's footage passing every stage, after
       fixing two problems it found (Amendment 2).
-- [ ] Run 2: recordings (one session), overnight analysis, results write-up.
+- [x] Run 2: recorded 2026-10-15 (15 of 21 takes; `distance_3m`/`4m` not
+      recorded, a reported deviation), analysed as pre-registered. **Rule A
+      passed** (ρ = +0.611, CI [+0.247, +0.845]; +0.495 on measured
+      conditions only), **Rule B failed** (Δρ = −0.043, CI [−0.306, +0.220]):
+      the gap score tracks landmark degradation but did no better than
+      counting dropouts. `docs/v1_run2_results.md`.
 
 ## Phase 5 — Packaging, CLI, demo notebook
 - [x] `pyproject.toml`, src-layout, editable install — verified working
@@ -223,7 +228,10 @@ sim-vs-real numbers with no download required; see
 recordings, 10 pre-registered conditions) did not show the gap score
 predicting MediaPipe hand dropout. The condition set gave the ground truth too
 little range, and spec 5.2 normalization was missing. See
-`docs/v1_first_run_results.md`.
+`docs/v1_first_run_results.md`. Run 2 (2026-10-15, 24 pre-registered
+simulated degradations of fresh footage) found the gap score ranking
+MediaPipe landmark degradation (ρ = +0.61), but no better than counting
+dropouts, so no added value is claimed. See `docs/v1_run2_results.md`.
 
 **Not done, and not claimed**: any result validated against independently
 measured transfer degradation (spec 8.1). Nothing in this repository is a

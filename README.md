@@ -60,9 +60,15 @@ landmark normalization had not been implemented. Full write-up:
 still-image dataset and cannot supply V1's trajectories — see
 `docs/temporal_provenance.md`.)
 
-**Run 2 is pre-registered and not yet recorded:**
-[`docs/v1_run2_preregistration.md`](docs/v1_run2_preregistration.md), with
-dated amendments, is the authority on its design and decision rules.
+**Run 2 (2026-10-15): tracks degradation, no added value shown.** Pre-registered
+in [`docs/v1_run2_preregistration.md`](docs/v1_run2_preregistration.md). Across
+24 simulated degradations of fresh webcam footage, the gap score ranked
+MediaPipe hand-landmark error (Spearman ρ = +0.61, 95% CI [+0.25, +0.85]; +0.50
+without the two conditions where the hand was never found), so Rule A passed.
+It did **not** rank it better than simply counting frames where the hand was
+lost (Δρ = −0.04, CI [−0.31, +0.22]), so Rule B failed: no claim of added value.
+One subject, one camera. Full write-up:
+[`docs/v1_run2_results.md`](docs/v1_run2_results.md).
 
 A note on what the bundled PGM data covers: Ogawa et al. (2017) Section 4 states the
 characterized actuator is a 300 mm walking-assist-scale muscle and explicitly says

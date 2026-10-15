@@ -22,6 +22,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`docs/v1_run2_results.md`: run 2's results.** Analysed exactly as
+  pre-registered. Rule A passed (ρ_gap = +0.611, 95% CI [+0.247, +0.845]) and
+  Rule B failed (Δρ = −0.043, CI [−0.306, +0.220]), with the same verdict in
+  Amendment 2's measured-only sensitivity analysis (22 conditions: +0.495;
+  Δρ = −0.055). The gap score tracks landmark degradation on these simulated
+  degradations, but did no better than counting dropouts, so no added value
+  is claimed. Two deviations are reported there: `distance_3m` and
+  `distance_4m` were not recorded, and the analysis resumed from its cache
+  after an interruption.
 - **Run-2 pre-registration, Amendment 2** (2026-10-09, before any run-2
   data). The symmetric Fréchet computation; a sensitivity analysis, reported
   with equal prominence, that recomputes Rules A and B without the conditions
