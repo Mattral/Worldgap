@@ -58,10 +58,12 @@ the abstraction rather than adding the branch.
 
 ## Known incomplete seams (see ROADMAP.md for status)
 
-- **V1 has one real result, and it is null and underpowered** (run 1,
-  `docs/v1_first_run_results.md`). Run 2 is pre-registered
-  (`docs/v1_run2_preregistration.md`, with Amendments 1 and 2) and not yet
-  recorded. Its primary conditions are software degradations of real
+- **V1 has two real results, neither showing added value.** Run 1 was null
+  and underpowered (`docs/v1_first_run_results.md`). Run 2
+  (`docs/v1_run2_results.md`, pre-registered in
+  `docs/v1_run2_preregistration.md`) passed Rule A, since the gap score
+  tracks landmark degradation, and failed Rule B: it did no better than
+  counting dropouts. Its primary conditions are software degradations of real
   footage, not real deployment conditions.
 - **HaGRID cannot supply trajectories.** It is a still-image dataset, so
   `hagrid.extract_rollout_from_frames()` raises by design; use
